@@ -28,9 +28,34 @@ class State:
         return np.array2string(self.state)
 
 class Simulator:
-    def __init__(self):
-        next
+    def __init__(self, start, goal):
+        self.start = start
+        self.goal = goal
+        self.G = nx.grid_2d_graph(7, 7)
+        pos = dict(zip(self.G.nodes, self.G.nodes))
+        self.G.graph['pos'] = pos
+        # obstacle list
+        self.obstacles = [(3,0), (3, 1), (3, 2)]
+        colors = []
+        for node in self.G.nodes:
+            if node in self.obstacles:
+                colors.append('r')
+            else:
+                colors.append('#1f78b4')
+        self.G.graph['node_color'] = colors
     
+    # return available actions in state, represented as a list
     def actions(self, state):
-        # return available actions in state, represented in a numpy array
-        return
+        # if the state is a terminal/absorbing state, it can only stay in this state
+        if self.is_terminal(state):
+            return [state]
+        neighbors = [neighbor for neighbor in self.G.neighbors(state)]
+        return [state] + neighbors
+    
+    def transition(self, state, action):
+        
+        # return (next_state, reward, cost)
+        return (0, 0, 0)
+    
+    def is_terminal(self, state):
+        return True
