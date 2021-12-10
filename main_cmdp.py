@@ -38,3 +38,5 @@ while not simulator.is_terminal(state):
     threshold = mcts_policy.tree.nodes[(next_state, 1)]['Vc']
     state = next_state
     
+if simulator.is_collision(state):
+    print('It collides with the obstacle')

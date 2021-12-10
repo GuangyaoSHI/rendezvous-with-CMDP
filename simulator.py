@@ -6,7 +6,7 @@ Created on Mon Dec  6 21:00:50 2021
 """
 import numpy as np
 import networkx as nx
-
+import random
 
 class State:
     def __init__(self):
@@ -28,7 +28,7 @@ class State:
         return np.array2string(self.state)
 
 class Simulator:
-    def __init__(self, start, goal):
+    def __init__(self, start=(0, 0), goal=(6, 0)):
         self.start = start
         self.goal = goal
         self.G = nx.grid_2d_graph(7, 7)
@@ -46,16 +46,39 @@ class Simulator:
     
     # return available actions in state, represented as a list
     def actions(self, state):
-        # if the state is a terminal/absorbing state, it can only stay in this state
+        # if it is a terminal/absorbing state, robot can only stay in this state
         if self.is_terminal(state):
             return [state]
         neighbors = [neighbor for neighbor in self.G.neighbors(state)]
         return [state] + neighbors
     
+    # return (next_state, reward, cost)
     def transition(self, state, action):
-        
-        # return (next_state, reward, cost)
-        return (0, 0, 0)
+        actions = self.actions(state)
+        if np.random.binomial(1, 0.99):
+            next_state = action
+        else:
+            actions_ = actions.remove(action)
+            next_state = random.sample(actions_, 1)[0]
+            if next_state == self.goal:
+                reward = 0
+                cost = 0
+            elif self.is_collision(next_state):
+                reward = -1
+                cost = 1
+            else:
+                reward = -1
+                cost = 0
+            
+        return (next_state, reward, cost)
     
     def is_terminal(self, state):
-        return True
+        if state == self.goal or state in self.obstacles:
+            return True
+        return False
+    
+    def is_collision(self, state):
+        if state in self.obstacles:
+            return True
+        else:
+            return False

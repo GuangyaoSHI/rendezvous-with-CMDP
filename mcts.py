@@ -32,7 +32,8 @@ class MctsSim:
         
         
     # corresponds to the GreedyPolicy in the paper    
-    def GreedyPolicy(self, state):
+    def GreedyPolicy(self, state, depth, k):
+        # k is for exploration term
         action = 0
         return action
     # default policy for rollout
@@ -90,18 +91,24 @@ class MctsSim:
 def search(state, threshold):
     # initialize lambda
     lambda_ = 10
-    # number of iterations
+    # Todo: how to specify a range for lambda [0, lambda_max]
+    lambda_max = 100
+    # Todo: how to specify the number of iterations
     iters = 100
     for i in range(iters):
         mcts = MctsSim(lambda_)
         mcts.simulate(state, 0)
         action = mcts.GreedyPolicy(state)
-        if (mcts.tree.nodes[(state, 0)]['Qc'][action] - threshold > 0):
+        if (mcts.tree.nodes[(state, 0)]['Qc'][action] - threshold < 0):
             # Todo: need to fine tune and check the implementation
-            at = 1
-        else:
             at = -1
-        lambda_ = lambda_ + at * (mcts.tree.nodes[(state, 0)]['Qc'][action] - threshold)
+        else:
+            at = 1
+        lambda_ += 1/(1+i) * at * (mcts.tree.nodes[(state, 0)]['Qc'][action] - threshold)
+        if (lambda_ < 0):
+            lambda_ = 0
+        if (lambda_ > lambda_max):
+            lambda_ = lambda_max
     return mcts
         
         
