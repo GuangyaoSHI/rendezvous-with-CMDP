@@ -156,7 +156,6 @@ class MctsSim:
     def expansion(self, node, parent_node, action, state, depth):
         
         actions = self.simulator.actions(state)
-        label = str(state.state)
         # N is the number of times that this state has been visited
         # Na is a dictionary to track the the number of times of (s, a) 
         # Vc is the value for cost, Qr is Q-value for reward, Qc is for cost
@@ -175,7 +174,7 @@ class MctsSim:
         # action_ = ",".join(map(str,action))
         self.tree.add_edge(parent_node, node, action=action)
         # for debug visualization
-        # visulize_tree(self.tree)
+        #visulize_tree(self.tree)
         return
     
     # default policy for rollout
@@ -189,14 +188,25 @@ class MctsSim:
         if depth == self.max_depth:
             return np.array([0, 0])
         
-        if self.simulator.is_collision(state):
-            return np.array([-1, 1])
+        # if self.simulator.is_collision(state):
+        #     return np.array([0, 0])
         
-        if self.simulator.is_goal(state):
-            return np.array([0, 0])
+        # if self.simulator.is_goal(state):
+        #     return np.array([0, 0])
         
         action = self.default_policy(state)
-        next_state, reward, cost = self.simulator.transition(state, action)
+        next_state, reward, cost, done = self.simulator.transition(state, action)
+        
+        if done:
+            return np.array([0, 0])
+        # Todo: will this cause the robot to choose to go into obstacles to 
+        # decrease cost
+        # if self.simulator.is_collision(next_state):
+        #     return np.array([-1, 1])
+        
+        # if self.simulator.is_goal(next_state):
+        #     return np.array([0, 0])
+        
         return np.array([reward, cost]) + self.gamma*self.roll_out(next_state, depth+1)
     
     
@@ -211,15 +221,18 @@ class MctsSim:
             return np.array([0, 0])
         
         # Todo: the following two may be not necessary
-        if self.simulator.is_collision(state):
-            return np.array([-1, 1])
+        # if self.simulator.is_collision(state):
+        #     return np.array([0, 0])
         
-        if self.simulator.is_goal(state):
-            return np.array([0, 0])
+        # if self.simulator.is_goal(state):
+        #     return np.array([0, 0])
              
         action = self.GreedyPolicy(node, self.uct_k)
-        next_state, reward, cost = self.simulator.transition(state, action)
+        # done is a flag to show whether state is already a terminal state
+        next_state, reward, cost, done = self.simulator.transition(state, action)
         
+        if done:
+            return np.array([0, 0])
         # check whether next_state is in the children node of the current node
         # indicator to represent whether next_state shows up in the child node
         # it should be <= 1
@@ -243,7 +256,7 @@ class MctsSim:
         # not working, there will an IndexError here            
         R = RC[0]
         C = RC[1]
-        
+        assert C <= 1
         # backpropagation
         self.tree.nodes[node]['N'] += 1
         Vc = self.tree.nodes[node]['Vc']
@@ -262,10 +275,10 @@ class MctsSim:
         assert action in self.simulator.actions(root)
         c_hat = -sys.maxsize
         for node in self.tree.successors(0):
-            print('action is {} and next_state is {}'.format(action, state.state))
-            print('edge between node {} and root is {}'.format(node, self.tree.edges[0, node]))
-            print('node state is {}'.format(self.tree.nodes[node]['state'].state))
-            print('action is {}'.format(self.tree.edges[0, node]['action']))
+            #print('action is {} and next_state is {}'.format(action, state.state))
+            #print('edge between node {} and root is {}'.format(node, self.tree.edges[0, node]))
+            #print('node state is {}'.format(self.tree.nodes[node]['state'].state))
+            #print('action is {}'.format(self.tree.edges[0, node]['action']))
             if (self.tree.nodes[node]['state'].state == state.state) and (self.tree.edges[0, node]['action'] == action):
                 return self.tree.nodes[node]['Vc']
             
@@ -283,11 +296,11 @@ def search(state, c_hat):
     lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 100
+    iters = 1000
     # Todo: number of monte carlo simulations 
     # number of times to do monte carlo simulation
     # in author's implementation this number is 1
-    Nmc = 2  
+    Nmc = 5
     mcts = MctsSim(lambda_, c_hat, state)
     root_node = 0
     depth = 0
@@ -304,7 +317,9 @@ def search(state, c_hat):
         else:
             at = 1
         # lambda_ += 1/(1+i) * at * (mcts.tree.nodes[(state, 0)]['Qc'][action] - c_hat)
-        lambda_ += 1/(1+i) * at
+        lambda_ += 1/(1+i) * at 
+        # lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
+        # lambda_ += at
         if (lambda_ < 0):
             lambda_ = 0
         if (lambda_ > lambda_max):
@@ -325,8 +340,8 @@ def visulize_tree(tree):
     nx.draw(G, pos)
     node_labels = nx.get_node_attributes(tree,'node_label')
     nx.draw_networkx_labels(G, pos, labels = node_labels)
-    edge_labels = nx.get_edge_attributes(tree,'action')
-    nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels)
+    #edge_labels = nx.get_edge_attributes(tree,'action')
+    #nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels)
     plt.show()
    
         
@@ -340,9 +355,7 @@ if __name__ == "__main__":
     c_hat = 0.9
     mcts = search(state, c_hat)
     visulize_tree(mcts.tree)
-    # pos = graphviz_layout(mcts.tree, prog="dot", root=0)
-    # nx.draw(mcts.tree, with_labels = True)
-    # plt.show()
+
     print('mcts nodes: {}'.format(mcts.tree.nodes))
     
     

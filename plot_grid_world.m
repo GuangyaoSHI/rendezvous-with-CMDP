@@ -8,4 +8,6 @@ for i = 1:row
     end
 end
 plot_handle = plot(X, Y, 'b.', 'MarkerSize', 20)
+hold on 
+plot([4, 4, 4], [1, 2, 3], 'r.', 'MarkerSize', 20)
 end

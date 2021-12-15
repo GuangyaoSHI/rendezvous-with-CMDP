@@ -60,18 +60,21 @@ class Simulator:
         reward = -1
         cost = 0
         actions = self.actions(state)
+        done = False
         # check whether robot is already in goal or has collided with obstacles
         if state.state == self.goal:
             print('already reach goal state')
             reward = 0
             cost = 0
-            return (state, reward, cost)
+            done = True
+            return (state, reward, cost, done)
         
         if self.is_collision(state):
             print('already collide with obstacles')
             reward = -1
             cost = 1
-            return (state, reward, cost)
+            done = True
+            return (state, reward, cost, done)
         
         # Todo: a better motion model
         if np.random.binomial(1, 0.99):
@@ -95,7 +98,7 @@ class Simulator:
             reward = -1
             cost = 0
             
-        return (next_state, reward, cost)
+        return (next_state, reward, cost, done)
     
     def is_terminal(self, state):
         if state.state == self.goal or (state.state in self.obstacles):
