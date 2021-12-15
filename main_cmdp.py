@@ -24,7 +24,7 @@ root_state = State()
 # initialize a simulator to check terminal state
 simulator = Simulator()
 # initial cost threshold
-c_hat = 0.5
+c_hat = 0.2
 # traces
 paths =[root_state.state]
 

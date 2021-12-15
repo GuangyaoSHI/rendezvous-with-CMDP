@@ -70,7 +70,7 @@ class Simulator:
             return (state, reward, cost, done)
         
         if self.is_collision(state):
-            print('already collide with obstacles')
+            #print('already collide with obstacles')
             reward = -1
             cost = 1
             done = True
