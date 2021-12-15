@@ -149,8 +149,13 @@ class MctsSim:
         assert 0 <= prob_minCost <= 1
         if random.random() <= prob_minCost:
             return minCostAction
+            # for debug
+            assert minCostAction in actions
         else:
             return maxCostAction
+            # for debug
+            assert maxCostAction in actions
+        
     
     # expansion
     def expansion(self, node, parent_node, action, state, depth):
@@ -182,6 +187,8 @@ class MctsSim:
         # actions is a list 
         actions = self.simulator.actions(state)
         action = random.sample(actions, 1)[0]
+        # for debug 
+        assert action in actions
         return action
         
     def roll_out(self, state, depth):
@@ -195,6 +202,7 @@ class MctsSim:
         #     return np.array([0, 0])
         
         action = self.default_policy(state)
+        #print('transition from state {} by taking action {} in roll_out'.format(state.state, action))
         next_state, reward, cost, done = self.simulator.transition(state, action)
         
         if done:
@@ -229,6 +237,7 @@ class MctsSim:
              
         action = self.GreedyPolicy(node, self.uct_k)
         # done is a flag to show whether state is already a terminal state
+        #print('transition from state {} by taking action {} in simulate'.format(state.state, action))
         next_state, reward, cost, done = self.simulator.transition(state, action)
         
         if done:
@@ -300,7 +309,7 @@ def search(state, c_hat):
     # Todo: number of monte carlo simulations 
     # number of times to do monte carlo simulation
     # in author's implementation this number is 1
-    Nmc = 5
+    Nmc = 10
     mcts = MctsSim(lambda_, c_hat, state)
     root_node = 0
     depth = 0

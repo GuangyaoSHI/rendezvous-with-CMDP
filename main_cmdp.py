@@ -39,7 +39,8 @@ while not simulator.is_terminal(curr_state):
         print('cost threshold is {}, and Vc from mcts is {}'.format(c_hat, Vc))
         #break
     action = mcts_policy.GreedyPolicy(0, 0)
-    next_state, reward, cost, done = simulator.transition(root_state, action)
+    print('transition from state {} by taking action {} in simulate'.format(curr_state.state, action))
+    next_state, reward, cost, done = simulator.transition(curr_state, action)
     paths.append(next_state.state)
     # Todo: what if the next_state has not been visited before?
     # c_hat = mcts_policy.update_admissble_cost(action, next_state)

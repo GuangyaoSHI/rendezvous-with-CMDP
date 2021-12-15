@@ -60,6 +60,9 @@ class Simulator:
         reward = -1
         cost = 0
         actions = self.actions(state)
+        if action not in actions:
+            print('action is {} while actions are {}'.format(action, actions))
+        assert action in actions
         done = False
         # check whether robot is already in goal or has collided with obstacles
         if state.state == self.goal:
