@@ -1,3 +1,0 @@
- plot_grid_world(7, 7)
- hold on
- pl
