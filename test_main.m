@@ -5,6 +5,6 @@ for i = 1:size(paths, 1)
     plot(paths(i, 1)+1, paths(i, 2)+1, 'mo','MarkerSize', 40);
     title("t = " + string(i))
     hold off
-    pause(1);
+    pause(0.5);
 end
 
