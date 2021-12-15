@@ -64,13 +64,13 @@ class Simulator:
         # check whether robot is already in goal or has collided with obstacles
         if state.state == self.goal:
             print('already reach goal state')
-            reward = 0
+            reward = 1000
             cost = 0
             done = True
             return (state, reward, cost, done)
         
         if self.is_collision(state):
-            #print('already collide with obstacles')
+            print('already collide with obstacles')
             reward = -1
             cost = 1
             done = True

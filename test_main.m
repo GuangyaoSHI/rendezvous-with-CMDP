@@ -1,3 +1,4 @@
+load('paths.mat')
 for i = 1:size(paths, 1)
     plot_grid_world(7, 7);
     hold on

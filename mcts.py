@@ -291,9 +291,9 @@ class MctsSim:
             
 def search(state, c_hat):
     # initialize lambda
-    lambda_ = 10
+    lambda_ = 1
     # Todo: how to specify a range for lambda [0, lambda_max]
-    lambda_max = 500
+    lambda_max = 1000
     # Todo: how to specify the number of iterations
     # number of times to update lambda
     iters = 1000
@@ -317,11 +317,11 @@ def search(state, c_hat):
         else:
             at = 1
         # lambda_ += 1/(1+i) * at * (mcts.tree.nodes[(state, 0)]['Qc'][action] - c_hat)
-        # lambda_ += 1/(1+np.log(i)) * at
+        # lambda_ += 1/(1+i) * at
         # lambda_ += 1/(1+i) * at
         # lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         # lambda_ += at
-        lambda_ += 1/(1+np.log(i)) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
+        lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         if (lambda_ < 0):
             lambda_ = 0
         if (lambda_ > lambda_max):
