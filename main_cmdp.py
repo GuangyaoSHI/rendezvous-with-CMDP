@@ -22,24 +22,29 @@ root_state = State()
 # initialize a simulator to check terminal state
 simulator = Simulator()
 # initial cost threshold
-c_hat = 0.9
+c_hat = 0.6
 # traces
 paths =[root_state.state]
 
-while not simulator.is_terminal(root_state):
-    mcts_policy = search(root_state, c_hat)
-    Vc = mcts_policy.tree.nodes[(root_state, 0)]['Vc']
+# current state
+curr_state = root_state
+while not simulator.is_terminal(curr_state):
+    mcts_policy = search(curr_state, c_hat)
+    Vc = mcts_policy.tree.nodes[0]['Vc']
     # Todo is this the right way to check violation?
     if Vc > c_hat:
         print('Constraint is violated')
         print('cost threshold is {}, and Vc from mcts is {}'.format(c_hat, Vc))
-        break
-    action = mcts_policy.GreedyPolicy(root_state)
+        #break
+    action = mcts_policy.GreedyPolicy(0, 0)
     next_state, reward, cost = simulator.transition(root_state, action)
     paths.append(next_state.state)
     # Todo: what if the next_state has not been visited before?
-    threshold = mcts_policy.tree.nodes[(next_state, 1)]['Vc']
-    state = next_state
+    c_hat = mcts_policy.update_admissble_cost(action, next_state)
+    print('updated c_hat is {}'.format(c_hat))
+    curr_state = next_state
     
-if simulator.is_collision(state):
+if simulator.is_collision(curr_state):
     print('It collides with the obstacle')
+    
+print(paths)

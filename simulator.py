@@ -9,9 +9,9 @@ import networkx as nx
 import random
 
 class State:
-    def __init__(self):
+    def __init__(self, state = (0, 0)):
         # use (x, y) to represent the state
-        self.state = (0, 0)
+        self.state = state
     
     # State needs to be hashable so that it can be used as a unique graph
     # node in NetworkX
@@ -24,8 +24,10 @@ class State:
     def __hash__(self):
         return hash(self.__key())
     
-    def __str__(self):                                                                                                          
-        return np.array2string(self.state)
+    def __str__(self): 
+        # we need to return a string here                                                                                                         
+        # return np.array2string(np.array(self.state))
+        return str(self.state)
 
 class Simulator:
     def __init__(self, start=(0, 0), goal=(6, 0)):
@@ -77,8 +79,8 @@ class Simulator:
         else:
             if actions == 1:
                 print('state is {} and actions are {}'.format(state.state, actions))
-            print('avaible actions are {}'.format(actions))
-            print('remove action {} and sample the rest'.format(action))
+            #print('avaible actions are {}'.format(actions))
+            #print('remove action {} and sample the rest'.format(action))
             actions.remove(action)
             assert len(actions) >= 1
             next_state.state = random.sample(actions, 1)[0]

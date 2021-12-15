@@ -1,0 +1,16 @@
+function  [] = plot_coordinate(R, name)
+%R is rotation matrix
+ex = [1;0;0];
+ey = [0;1;0];
+ez = [0;0;1];
+%plot fixed/world coordinate
+quiver3(0, 0, 0, 1, 0, 0, 'r')
+text
+hold on
+quiver3(0, 0, 0, 0, 1, 0, 'g')
+quiver3(0, 0, 0, 0, 0, 1, 'b')
+ex_new = R*ex;
+ey_new = R*ey;
+ez_new = R*ez;
+quiver3(0, 0, 0, 1, 0, 0, 'r')
+end

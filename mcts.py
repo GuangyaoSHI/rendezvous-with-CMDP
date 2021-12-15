@@ -35,15 +35,21 @@ class MctsSim:
         self.simulator = Simulator()
         self.c_hat = c_hat
         actions = self.simulator.actions(root)
-        self.tree.add_node((root.state, 0), 
-                           N = 0, 
+        self.node_counter = 0
+        self.tree.add_node(self.node_counter,
+                           node_label = str(root.state),
+                           state = root,
+                           depth = 0,
+                           N = 1, 
                            Na = dict(zip(actions, np.zeros(len(actions)))), 
                            Vc=0, 
                            Qr=dict(zip(actions, np.zeros(len(actions)))), 
-                           Qc=dict(zip(actions, np.zeros(len(actions)))))
+                           Qc=dict(zip(actions, np.zeros(len(actions)))),
+                           )
+        self.node_counter += 1
         
     def ucb(self, Ns, Nsa):
-        print('Ns is {}, Nsa is {}'.format(Ns, Nsa))
+        #print('Ns is {}, Nsa is {}'.format(Ns, Nsa))
         assert (Ns >= 0) and (Nsa >= 0) 
         if (Ns == 0) or (Nsa == 0):
             return sys.maxsize
@@ -52,38 +58,40 @@ class MctsSim:
             
         
     # corresponds to the GreedyPolicy in the paper    
-    def GreedyPolicy(self, state, depth, k):
+    def GreedyPolicy(self, node, k):
+        state = self.tree.nodes[node]['state']
+        depth = self.tree.nodes[node]['depth']
         # k is for exploration term
         # actions is a list of actions
         actions = self.simulator.actions(state)
-        print('state is {} actions are {}'.format(state.state, actions))
+        #print('state is {} actions are {}'.format(state.state, actions))
         # find action star, which is a list
         action_star = []
         Qplus_star = -sys.maxsize
         for action in actions:
-            print('node is {}'.format(self.tree.nodes[(state.state, depth)]))
-            Qr = self.tree.nodes[(state.state, depth)]['Qr'][action]
-            Qc = self.tree.nodes[(state.state, depth)]['Qc'][action]
-            Ns = self.tree.nodes[(state.state, depth)]['N']
-            Nsa = self.tree.nodes[(state.state, depth)]['Na'][action]
-            print('Qr is {}, Qc is {}, Ns is {}, Nsa is {}'.format(Qr, Qc, Ns, Nsa))
+            #print('node is {}'.format(node))
+            Qr = self.tree.nodes[node]['Qr'][action]
+            Qc = self.tree.nodes[node]['Qc'][action]
+            Ns = self.tree.nodes[node]['N']
+            Nsa = self.tree.nodes[node]['Na'][action]
+            #print('Qr is {}, Qc is {}, Ns is {}, Nsa is {}'.format(Qr, Qc, Ns, Nsa))
             # a small number is added to numerator for numerical stability
             # Todo: should I follow author's implementation on UCB?
-            print('lambda is {}, k is {}'.format(self.lambda_, k))
-            print('ucb is {}'.format(self.ucb(Ns, Nsa)))
+            #print('lambda is {}, k is {}'.format(self.lambda_, k))
+            #print('ucb is {}'.format(self.ucb(Ns, Nsa)))
             Qplus =  Qr - self.lambda_*Qc + k * self.ucb(Ns, Nsa)
-            print('Qplus is {}'.format(Qplus))
+            #print('Qplus is {}'.format(Qplus))
             if  Qplus >= Qplus_star:
                 # Todo: does this part matter?
                 # strictly follow author's implementation
                 # it is actually a little bit probalematic 
                 # only one element in the action_star set
                 if Qplus > Qplus_star:
-                    print('action_star is cleared')
+                    #print('action_star is cleared')
                     action_star = []
                 Qplus_star = Qplus
                 action_star.append(action)
-                print('action_star is {}'.format(action_star))
+                #print('action_star is {}'.format(action_star))
         assert len(action_star) >= 1
         # sample from the action star
         best_action = random.sample(action_star, 1)[0]
@@ -97,16 +105,16 @@ class MctsSim:
         minCostAction = best_action
         maxCostAction = best_action
         
-        best_action_N = self.tree.nodes[(state.state, depth)]['Na'][best_action]
-        best_action_Qr = self.tree.nodes[(state.state, depth)]['Qr'][best_action]
-        best_action_Qc = self.tree.nodes[(state.state, depth)]['Qc'][best_action]
+        best_action_N = self.tree.nodes[node]['Na'][best_action]
+        best_action_Qr = self.tree.nodes[node]['Qr'][best_action]
+        best_action_Qc = self.tree.nodes[node]['Qc'][best_action]
         best_action_Q = best_action_Qr - self.lambda_ * best_action_Qc
         best_action_bias = biasconstant * np.log(best_action_N + 1)/(best_action_N + 1)
         
         for action in actions:
-            Qr = self.tree.nodes[(state.state, depth)]['Qr'][action]
-            Qc = self.tree.nodes[(state.state, depth)]['Qc'][action]
-            Nsa = self.tree.nodes[(state.state, depth)]['Na'][action]
+            Qr = self.tree.nodes[node]['Qr'][action]
+            Qc = self.tree.nodes[node]['Qc'][action]
+            Nsa = self.tree.nodes[node]['Na'][action]
             Q = Qr - self.lambda_*Qc
             action_bias = biasconstant * (np.log(Nsa + 1)/(Nsa + 1))
             # Todo: test deterministic case
@@ -142,7 +150,34 @@ class MctsSim:
             return minCostAction
         else:
             return maxCostAction
+    
+    # expansion
+    def expansion(self, node, parent_node, action, state, depth):
         
+        actions = self.simulator.actions(state)
+        label = str(state.state)
+        # N is the number of times that this state has been visited
+        # Na is a dictionary to track the the number of times of (s, a) 
+        # Vc is the value for cost, Qr is Q-value for reward, Qc is for cost
+        self.tree.add_node(node,
+                           node_label = str(state.state),
+                           state = state,
+                           depth = depth,
+                           N = 1, 
+                           Na = dict(zip(actions, np.zeros(len(actions)))), 
+                           Vc=0, 
+                           Qr=dict(zip(actions, np.zeros(len(actions)))), 
+                           Qc=dict(zip(actions, np.zeros(len(actions)))),
+                           )
+        self.node_counter += 1
+        # for plot purpose
+        # action_ = ",".join(map(str,action))
+        self.tree.add_edge(parent_node, node, action=action)
+        # pos = graphviz_layout(self.tree, prog="dot")
+        # nx.draw(self.tree, pos, with_labels = True)
+        # plt.show()
+        return
+    
     # default policy for rollout
     def default_policy(self, state):
         # actions is a list 
@@ -153,6 +188,7 @@ class MctsSim:
     def roll_out(self, state, depth):
         if depth == self.max_depth:
             return np.array([0, 0])
+        
         if self.simulator.is_collision(state):
             return np.array([-1, 1])
         
@@ -163,73 +199,85 @@ class MctsSim:
         next_state, reward, cost = self.simulator.transition(state, action)
         return np.array([reward, cost]) + self.gamma*self.roll_out(next_state, depth+1)
     
+    
+    
     # Simulate 
-    def simulate(self, state, depth):
+    def simulate(self, node, depth):
+        state = self.tree.nodes[node]['state']
+        #print('we are now in node {} with state {}'.format(node, state.state))
+       
         # Todo add terminal state check
         if depth == self.max_depth:
             return np.array([0, 0])
         
+        # Todo: the following two may be not necessary
         if self.simulator.is_collision(state):
             return np.array([-1, 1])
         
         if self.simulator.is_goal(state):
             return np.array([0, 0])
-        
-        # expansion
-        # replace state with state.state
-        if not ((state.state, depth) in self.tree.nodes):
-            # find all action:N(a, s) pairs
-            actions = self.simulator.actions(state)
-            
-            # N is the number of times that this state has been visited
-            # Na is a dictionary to track the the number of times of (s, a) 
-            # Vc is the value for cost, Qr is Q-value for reward, Qc is for cost
-            self.tree.add_node((state.state, depth), N = 0, 
-                               Na = dict(zip(actions, np.zeros(len(actions)))), 
-                               Vc=0, 
-                               Qr= dict(zip(actions, np.zeros(len(actions)))), 
-                               Qc= dict(zip(actions, np.zeros(len(actions)))))
-            
-            # rollout and use action information to update node state
-            # rollout can be parallel
-            action = self.default_policy(state)
-            next_state, reward, cost = self.simulator.transition(state, action)
-            RC =  np.array([reward, cost]) + self.gamma*self.roll_out(next_state, depth+1)
-            
-            R = RC[0]
-            C = RC[1]
-            # backpropagation
-            
-            self.tree.nodes[(state.state, depth)]['N'] += 1
-            self.tree.nodes[(state.state, depth)]['Vc'] = C
-            self.tree.nodes[(state.state, depth)]['Na'][action] += 1
-            self.tree.nodes[(state.state, depth)]['Qr'][action] = R
-            self.tree.nodes[(state.state, depth)]['Qc'][action] = C
-            return RC
-        
-        action = self.GreedyPolicy(state, depth, self.uct_k)
+             
+        action = self.GreedyPolicy(node, self.uct_k)
         next_state, reward, cost = self.simulator.transition(state, action)
- 
-        # RC = np.array([reward, cost])
-        RC = np.array([reward, cost]) + self.gamma*self.simulate(next_state, depth+1)
-        self.tree.add_edge((state.state, depth), (next_state.state, depth + 1), 
-                           action = action)
+        
+        # check whether next_state is in the children node of the current node
+        # indicator to represent whether next_state shows up in the child node
+        # it should be <= 1
+        indicator = 0
+        RC = []
+        for child in self.tree.successors(node):
+            child_state = self.tree.nodes[child]['state']
+            if next_state.state == child_state.state:
+                RC = np.array([reward, cost]) + self.gamma*self.simulate(child, depth+1)
+                indicator += 1
+        
+        assert indicator <= 1, "a state shows up more than once in the child nodes"
+        # if next_state doesn't show up in the child node
+        if not indicator:
+            # expansion
+            next_node = self.node_counter
+            self.expansion(next_node, node, action, next_state, depth+1)
+            RC =  np.array([reward, cost]) + self.gamma*self.roll_out(next_state, depth+1)
+        
+        # if the previous code on checking whether next_state is in the child node
+        # not working, there will an IndexError here            
         R = RC[0]
         C = RC[1]
+        
         # backpropagation
+        self.tree.nodes[node]['N'] += 1
+        Vc = self.tree.nodes[node]['Vc']
+        self.tree.nodes[node]['Vc'] = Vc + (C-Vc)/self.tree.nodes[node]['N']
         
-        self.tree.nodes[(state.state, depth)]['N'] += 1
-        Vc = self.tree.nodes[(state.state, depth)]['Vc']
-        self.tree.nodes[(state.state, depth)]['Vc'] = Vc + (C-Vc)/self.tree.nodes[(state.state, depth)]['N']
-        
-        for action in self.tree.nodes[(state.state, depth)]['Na']:
-            print('Nsa is {}'.format(self.tree.nodes[(state.state, depth)]['Na'][action]))
-            self.tree.nodes[(state.state, depth)]['Na'][action] += 1
-            Qr = self.tree.nodes[(state.state, depth)]['Qr'][action]
-            Qc = self.tree.nodes[(state.state, depth)]['Qc'][action]
-            self.tree.nodes[(state.state, depth)]['Qr'][action] = Qr + (R-Qr)/self.tree.nodes[(state.state, depth)]['Na'][action]
-            self.tree.nodes[(state.state, depth)]['Qc'][action] = Qc + (C-Qc)/self.tree.nodes[(state.state, depth)]['Na'][action]
+        #print('Nsa is {}'.format(self.tree.nodes[node]['Na'][action]))
+        self.tree.nodes[node]['Na'][action] += 1
+        Qr = self.tree.nodes[node]['Qr'][action]
+        Qc = self.tree.nodes[node]['Qc'][action]
+        self.tree.nodes[node]['Qr'][action] = Qr + (R-Qr)/self.tree.nodes[node]['Na'][action]
+        self.tree.nodes[node]['Qc'][action] = Qc + (C-Qc)/self.tree.nodes[node]['Na'][action]
         return RC
+    
+    def update_admissble_cost(self, action, state):
+        root = self.tree.nodes[0]['state']
+        assert action in self.simulator.actions(root)
+        c_hat = -sys.maxsize
+        for node in self.tree.successors(0):
+            print('action is {} and next_state is {}'.format(action, state.state))
+            print('edge between node {} and root is {}'.format(node, self.tree.edges[0, node]))
+            print('node state is {}'.format(self.tree.nodes[node]['state'].state))
+            print('action is {}'.format(self.tree.edges[0, node]['action']))
+            if (self.tree.nodes[node]['state'].state == state.state) and (self.tree.edges[0, node]['action'] == action):
+                return self.tree.nodes[node]['Vc']
+            
+            if self.tree.nodes[node]['Vc'] > c_hat:
+                c_hat = self.tree.nodes[node]['Vc']
+            
+        print('state {} has not been visited before and return max Vc of children'.format(state.state))
+        return c_hat
+                   
+            
+
+        
 
         
         
@@ -240,18 +288,21 @@ def search(state, c_hat):
     lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 10
+    iters = 100
     # Todo: number of monte carlo simulations 
     # number of times to do monte carlo simulation
     # in author's implementation this number is 1
-    Nmc = 2    
+    Nmc = 2  
     mcts = MctsSim(lambda_, c_hat, state)
+    root_node = 0
+    depth = 0
     for i in range(iters):
         # grow monte carlo tree
         for i in range(Nmc):
-            mcts.simulate(state, 0)
-        action = mcts.GreedyPolicy(state, 0, 0)
-        if (mcts.tree.nodes[(state.state, 0)]['Qc'][action] - c_hat < 0):
+            # the second root_node is parent_node
+            mcts.simulate(root_node, depth)
+        action = mcts.GreedyPolicy(root_node, 0)
+        if (mcts.tree.nodes[root_node]['Qc'][action] - c_hat < 0):
             # Todo: need to fine tune and check the implementation
             # author's implementation is different from his formula in the paper
             at = -1
@@ -266,7 +317,23 @@ def search(state, c_hat):
         mcts.lambda_ = lambda_
     return mcts
         
-        
+def visulize_tree(tree):
+    # https://stackoverflow.com/questions/20381460/networkx-how-to-show-node-and-edge-attributes-in-a-graph-drawing
+    G = nx.DiGraph()
+    for edge in tree.edges:
+        # G.add_edge(edge[0], edge[1], label=tree.edges[edge]['action'])
+        G.add_edge(edge[0], edge[1])
+    # for node in G.nodes:
+    #     G.nodes[node]['label'] = tree.nodes[node]['state'].state
+    
+    pos = graphviz_layout(G, prog="dot", root=0)
+    nx.draw(G, pos)
+    node_labels = nx.get_node_attributes(tree,'node_label')
+    nx.draw_networkx_labels(G, pos, labels = node_labels)
+    edge_labels = nx.get_edge_attributes(tree,'action')
+    nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels)
+    plt.show()
+   
         
         
 if __name__ == "__main__":
@@ -277,9 +344,10 @@ if __name__ == "__main__":
     state = State()
     c_hat = 0.9
     mcts = search(state, c_hat)
-    pos = graphviz_layout(mcts.tree, prog="dot")
-    nx.draw(mcts.tree, pos, with_labels = True)
-    plt.show()
+    visulize_tree(mcts.tree)
+    # pos = graphviz_layout(mcts.tree, prog="dot", root=0)
+    # nx.draw(mcts.tree, with_labels = True)
+    # plt.show()
     print('mcts nodes: {}'.format(mcts.tree.nodes))
     
     
