@@ -36,6 +36,7 @@ class MctsSim:
         self.c_hat = c_hat
         actions = self.simulator.actions(root)
         self.node_counter = 0
+        # node is indexed by a number in the tree
         self.tree.add_node(self.node_counter,
                            node_label = str(root.state),
                            state = root,
@@ -173,9 +174,8 @@ class MctsSim:
         # for plot purpose
         # action_ = ",".join(map(str,action))
         self.tree.add_edge(parent_node, node, action=action)
-        # pos = graphviz_layout(self.tree, prog="dot")
-        # nx.draw(self.tree, pos, with_labels = True)
-        # plt.show()
+        # for debug visualization
+        # visulize_tree(self.tree)
         return
     
     # default policy for rollout
@@ -276,11 +276,6 @@ class MctsSim:
         return c_hat
                    
             
-
-        
-
-        
-        
 def search(state, c_hat):
     # initialize lambda
     lambda_ = 10
