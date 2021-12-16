@@ -49,7 +49,7 @@ class Simulator:
     # return available actions in state, represented as a list
     def actions(self, state):
         # if it is a terminal/absorbing state, robot can only stay in this state
-        if self.is_terminal(state):
+        if self.is_goal(state):
             return [state.state]
         neighbors = [neighbor for neighbor in self.G.neighbors(state.state)]
         return [state.state] + neighbors
@@ -66,18 +66,18 @@ class Simulator:
         done = False
         # check whether robot is already in goal or has collided with obstacles
         if state.state == self.goal:
-            print('already reach goal state')
-            reward = 1000
+            #print('already reach goal state')
+            reward = 0
             cost = 0
             done = True
             return (state, reward, cost, done)
         
-        if self.is_collision(state):
-            print('already collide with obstacles')
-            reward = -1
-            cost = 1
-            done = True
-            return (state, reward, cost, done)
+        # if self.is_collision(state):
+        #     #print('already collide with obstacles')
+        #     reward = -1
+        #     cost = 1
+        #     done = True
+        #     return (state, reward, cost, done)
         
         # Todo: a better motion model
         if np.random.binomial(1, 0.99):
@@ -87,6 +87,7 @@ class Simulator:
                 print('state is {} and actions are {}'.format(state.state, actions))
             #print('avaible actions are {}'.format(actions))
             #print('remove action {} and sample the rest'.format(action))
+            #print('state is {}; action is {}; actions are {}'.format(state.state, action, actions))
             actions.remove(action)
             assert len(actions) >= 1
             next_state.state = random.sample(actions, 1)[0]

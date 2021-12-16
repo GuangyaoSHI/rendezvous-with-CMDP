@@ -25,7 +25,7 @@ class MctsSim:
         # Prevents division by 0 in calculation of UCT
         self.EPSILON = 10e-6
         # UCB coefficient
-        self.uct_k = np.sqrt(2)
+        self.uct_k = 0.5*np.sqrt(2)
         # maximum depth
         self.max_depth = 20
         # shrinking factor
@@ -265,7 +265,7 @@ class MctsSim:
         # not working, there will an IndexError here            
         R = RC[0]
         C = RC[1]
-        assert C <= 1
+        #assert C <= 1
         # backpropagation
         self.tree.nodes[node]['N'] += 1
         Vc = self.tree.nodes[node]['Vc']
@@ -309,7 +309,7 @@ def search(state, c_hat):
     # Todo: number of monte carlo simulations 
     # number of times to do monte carlo simulation
     # in author's implementation this number is 1
-    Nmc = 10
+    Nmc = 1
     mcts = MctsSim(lambda_, c_hat, state)
     root_node = 0
     depth = 0
@@ -326,11 +326,10 @@ def search(state, c_hat):
         else:
             at = 1
         # lambda_ += 1/(1+i) * at * (mcts.tree.nodes[(state, 0)]['Qc'][action] - c_hat)
-        # lambda_ += 1/(1+i) * at
-        # lambda_ += 1/(1+i) * at
+        lambda_ += 1/(1+i) * at
         # lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         # lambda_ += at
-        lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
+        # lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         if (lambda_ < 0):
             lambda_ = 0
         if (lambda_ > lambda_max):
