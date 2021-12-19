@@ -25,9 +25,10 @@ class MctsSim:
         # Prevents division by 0 in calculation of UCT
         self.EPSILON = 10e-6
         # UCB coefficient
-        self.uct_k = 0.5*np.sqrt(2)
+        self.uct_k = np.sqrt(2)
         # maximum depth
-        self.max_depth = 20
+        self.max_depth_roll_out = 300
+        self.max_depth_simulate = 30
         # shrinking factor
         self.gamma = 1
         # lambda
@@ -192,7 +193,7 @@ class MctsSim:
         return action
         
     def roll_out(self, state, depth):
-        if depth == self.max_depth:
+        if depth == self.max_depth_roll_out:
             return np.array([0, 0])
         
         # if self.simulator.is_collision(state):
@@ -225,7 +226,7 @@ class MctsSim:
         #print('we are now in node {} with state {}'.format(node, state.state))
        
         # Todo add terminal state check
-        if depth == self.max_depth:
+        if depth == self.max_depth_simulate:
             return np.array([0, 0])
         
         # Todo: the following two may be not necessary
@@ -264,7 +265,10 @@ class MctsSim:
         # if the previous code on checking whether next_state is in the child node
         # not working, there will an IndexError here            
         R = RC[0]
+        # if RC[1] > 1:
+        #     RC[1] = 1
         C = RC[1]
+        
         #assert C <= 1
         # backpropagation
         self.tree.nodes[node]['N'] += 1
@@ -309,7 +313,7 @@ def search(state, c_hat):
     # Todo: number of monte carlo simulations 
     # number of times to do monte carlo simulation
     # in author's implementation this number is 1
-    Nmc = 1
+    Nmc = 2
     mcts = MctsSim(lambda_, c_hat, state)
     root_node = 0
     depth = 0
@@ -326,7 +330,7 @@ def search(state, c_hat):
         else:
             at = 1
         # lambda_ += 1/(1+i) * at * (mcts.tree.nodes[(state, 0)]['Qc'][action] - c_hat)
-        lambda_ += 1/(1+i) * at
+        lambda_ += 1/(1+i/5) * at
         # lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         # lambda_ += at
         # lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
@@ -335,6 +339,7 @@ def search(state, c_hat):
         if (lambda_ > lambda_max):
             lambda_ = lambda_max
         mcts.lambda_ = lambda_
+        #print('lambda is {}'.format(mcts.lambda_))
     return mcts
         
 def visulize_tree(tree):
