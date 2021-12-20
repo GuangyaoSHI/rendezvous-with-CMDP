@@ -33,12 +33,17 @@ curr_state = root_state
 while not simulator.is_terminal(curr_state):
     mcts_policy = search(curr_state, c_hat)
     Vc = mcts_policy.tree.nodes[0]['Vc']
-    # Todo is this the right way to check violation?
-    if Vc > c_hat:
-        print('Constraint is violated')
-        print('cost threshold is {}, and Vc from mcts is {}'.format(c_hat, Vc))
-        #break
     action = mcts_policy.GreedyPolicy(0, 0)
+    print('transition from state {} by taking action {} in simulate'.format(curr_state.state, action))
+    Qc = mcts_policy.tree.nodes[0]['Qc'][action]
+    # Todo is this the right way to check violation?
+    if Qc > c_hat:
+        print('Constraint is violated')
+        print('cost threshold is {}, and Qc from mcts is {}'.format(c_hat, Qc))
+        #break
+    else:
+        print('cost threshold is {}, and Qc from mcts is {}'.format(c_hat, Qc))
+   
     print('transition from state {} by taking action {} in simulate'.format(curr_state.state, action))
     next_state, reward, cost, done = simulator.transition(curr_state, action)
     paths.append(next_state.state)
@@ -46,9 +51,13 @@ while not simulator.is_terminal(curr_state):
     # c_hat = mcts_policy.update_admissble_cost(action, next_state)
     # print('updated c_hat is {}'.format(c_hat))
     curr_state = next_state
+    break
     
 if simulator.is_collision(curr_state):
     print('It collides with the obstacle')
     
 print(paths)
 savemat("paths.mat", {"paths":paths})
+
+
+

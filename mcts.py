@@ -27,8 +27,8 @@ class MctsSim:
         # UCB coefficient
         self.uct_k = np.sqrt(2)
         # maximum depth
-        self.max_depth_roll_out = 300
-        self.max_depth_simulate = 30
+        self.max_depth_roll_out = 100
+        self.max_depth_simulate = 40
         # shrinking factor
         self.gamma = 1
         # lambda
@@ -227,6 +227,8 @@ class MctsSim:
        
         # Todo add terminal state check
         if depth == self.max_depth_simulate:
+            #print('reach maximum simulate depth {}'.format(self.max_depth_simulate))
+            # this is different from that in the original algorithm
             return np.array([0, 0])
         
         # Todo: the following two may be not necessary
@@ -265,8 +267,8 @@ class MctsSim:
         # if the previous code on checking whether next_state is in the child node
         # not working, there will an IndexError here            
         R = RC[0]
-        # if RC[1] > 1:
-        #     RC[1] = 1
+        if RC[1] > 1:
+            RC[1] = 1
         C = RC[1]
         
         #assert C <= 1
@@ -306,20 +308,20 @@ def search(state, c_hat):
     # initialize lambda
     lambda_ = 1
     # Todo: how to specify a range for lambda [0, lambda_max]
-    lambda_max = 1000
+    lambda_max = 3000
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 1000
+    iters = 60000
     # Todo: number of monte carlo simulations 
     # number of times to do monte carlo simulation
     # in author's implementation this number is 1
-    Nmc = 2
+    Nmc = 1
     mcts = MctsSim(lambda_, c_hat, state)
     root_node = 0
     depth = 0
     for i in range(iters):
         # grow monte carlo tree
-        for i in range(Nmc):
+        for j in range(Nmc):
             # the second root_node is parent_node
             mcts.simulate(root_node, depth)
         action = mcts.GreedyPolicy(root_node, 0)
@@ -327,13 +329,18 @@ def search(state, c_hat):
             # Todo: need to fine tune and check the implementation
             # author's implementation is different from his formula in the paper
             at = -1
+            #print('Qc {} is less than c_hat {}'.format(mcts.tree.nodes[root_node]['Qc'][action], c_hat))
         else:
             at = 1
-        # lambda_ += 1/(1+i) * at * (mcts.tree.nodes[(state, 0)]['Qc'][action] - c_hat)
-        lambda_ += 1/(1+i/5) * at
-        # lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
+            #print('Qc {} is >= c_hat {}'.format(mcts.tree.nodes[root_node]['Qc'][action], c_hat))
+
+        
+        #lambda_ += 1/(1+i/5) * at
+        lambda_ += 1/(1+i/2500) * at
+        #print('new lambda is {}'.format(lambda_))
+        #lambda_ += 1/(1+i/200) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         # lambda_ += at
-        # lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
+        #lambda_ += 1/(1+i/1000) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         if (lambda_ < 0):
             lambda_ = 0
         if (lambda_ > lambda_max):

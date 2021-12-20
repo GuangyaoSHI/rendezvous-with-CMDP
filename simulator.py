@@ -80,10 +80,10 @@ class Simulator:
         #     return (state, reward, cost, done)
         
         # Todo: a better motion model
-        if np.random.binomial(1, 0.99):
+        if np.random.binomial(1, 1):
             next_state.state = action
         else:
-            if actions == 1:
+            if len(actions) == 1:
                 print('state is {} and actions are {}'.format(state.state, actions))
             #print('avaible actions are {}'.format(actions))
             #print('remove action {} and sample the rest'.format(action))
