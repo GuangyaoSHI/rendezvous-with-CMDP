@@ -52,8 +52,10 @@ class Simulator:
         if self.is_goal(state):
             return [state.state]
         neighbors = [neighbor for neighbor in self.G.neighbors(state.state)]
-        return [state.state] + neighbors
-    
+        # allow robot to stay where it is now
+        #return [state.state] + neighbors
+        # robot has to move to a new position
+        return neighbors
     # return (next_state, reward, cost)
     def transition(self, state, action):
         next_state = State()
@@ -80,7 +82,7 @@ class Simulator:
         #     return (state, reward, cost, done)
         
         # Todo: a better motion model
-        if np.random.binomial(1, 1):
+        if np.random.binomial(1, 0.99):
             next_state.state = action
         else:
             if len(actions) == 1:

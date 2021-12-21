@@ -21,13 +21,13 @@ class MctsSim:
     def __init__(self, lambda_, c_hat, root):
         # initialize a sample search tree
         self.tree = nx.DiGraph()
-        
+        self.state_tracking = {}
         # Prevents division by 0 in calculation of UCT
         self.EPSILON = 10e-6
         # UCB coefficient
         self.uct_k = np.sqrt(2)
         # maximum depth
-        self.max_depth_roll_out = 100
+        self.max_depth_roll_out = 200
         self.max_depth_simulate = 40
         # shrinking factor
         self.gamma = 1
@@ -44,16 +44,26 @@ class MctsSim:
                            depth = 0,
                            N = 1, 
                            Na = dict(zip(actions, np.zeros(len(actions)))), 
-                           Vc=0, 
-                           Qr=dict(zip(actions, np.zeros(len(actions)))), 
-                           Qc=dict(zip(actions, np.zeros(len(actions)))),
+                           Vc = 0, 
+                           Qr = dict(zip(actions, np.zeros(len(actions)))), 
+                           Qc = dict(zip(actions, np.zeros(len(actions)))),
                            )
+        self.state_tracking[root.state] = {}
+        self.state_tracking[root.state]['N'] = 1
+        self.state_tracking[root.state]['Na'] = dict(zip(actions, np.zeros(len(actions))))
+        self.state_tracking[root.state]['Vc'] = 0
+        self.state_tracking[root.state]['Qr'] = dict(zip(actions, np.zeros(len(actions))))
+        self.state_tracking[root.state]['Qc'] = dict(zip(actions, np.zeros(len(actions))))
         self.node_counter += 1
+        self.latest_policy = {}
+        
         
     def ucb(self, Ns, Nsa):
         #print('Ns is {}, Nsa is {}'.format(Ns, Nsa))
         assert (Ns >= 0) and (Nsa >= 0) 
+        
         if (Ns == 0) or (Nsa == 0):
+            print('Initialize UCB')
             return sys.maxsize
         else:
             return np.sqrt(np.log(Ns)/(Nsa+self.EPSILON))
@@ -82,6 +92,7 @@ class MctsSim:
             #print('lambda is {}, k is {}'.format(self.lambda_, k))
             #print('ucb is {}'.format(self.ucb(Ns, Nsa)))
             Qplus =  Qr - self.lambda_*Qc + k * self.ucb(Ns, Nsa)
+            print('Qr: {}, Qc: {}, ucb:{}, lambda:{}, Qplus:{}'.format(Qr, Qc, k *self.ucb(Ns, Nsa), self.lambda_, Qplus))
             #print('Qplus is {}'.format(Qplus))
             if  Qplus >= Qplus_star:
                 # Todo: does this part matter?
@@ -95,6 +106,8 @@ class MctsSim:
                 action_star.append(action)
                 #print('action_star is {}'.format(action_star))
         assert len(action_star) >= 1
+        # if len(action_star) > 1:
+        #     print('there are {} actions in action_star'.format(len(action_star)))
         # sample from the action star
         best_action = random.sample(action_star, 1)[0]
         # find minCost minCostAction
@@ -148,6 +161,13 @@ class MctsSim:
             #prob_maxCost = 1 - prob_minCost
         
         assert 0 <= prob_minCost <= 1
+        # keep track of latest greedy policy for visualization
+        self.latest_policy = {'minCostAction': minCostAction,
+                              'maxCostAction': maxCostAction,
+                              'prob_minCost': prob_minCost}
+        
+        # if (minCostAction != maxCostAction):
+        #     print('minCostAction {} is different from maxCostAction {}'.format(minCostAction, maxCostAction))
         if random.random() <= prob_minCost:
             return minCostAction
             # for debug
@@ -165,16 +185,35 @@ class MctsSim:
         # N is the number of times that this state has been visited
         # Na is a dictionary to track the the number of times of (s, a) 
         # Vc is the value for cost, Qr is Q-value for reward, Qc is for cost
-        self.tree.add_node(node,
-                           node_label = str(state.state),
-                           state = state,
-                           depth = depth,
-                           N = 1, 
-                           Na = dict(zip(actions, np.zeros(len(actions)))), 
-                           Vc=0, 
-                           Qr=dict(zip(actions, np.zeros(len(actions)))), 
-                           Qc=dict(zip(actions, np.zeros(len(actions)))),
-                           )
+        #if state.state in self.state_tracking:
+        if False:
+            self.tree.add_node(node,
+                               node_label = str(state.state),
+                               state = state,
+                               depth = depth,
+                               N = self.state_tracking[state.state]['N'], 
+                               Na = self.state_tracking[state.state]['Na'], 
+                               Vc = self.state_tracking[state.state]['Vc'], 
+                               Qr = self.state_tracking[state.state]['Qr'], 
+                               Qc = self.state_tracking[state.state]['Qc']
+                               )
+        else:    
+            self.tree.add_node(node,
+                               node_label = str(state.state),
+                               state = state,
+                               depth = depth,
+                               N = 1, 
+                               Na = dict(zip(actions, np.zeros(len(actions)))), 
+                               Vc = 0, 
+                               Qr = dict(zip(actions, np.zeros(len(actions)))), 
+                               Qc = dict(zip(actions, np.zeros(len(actions))))
+                               )
+            self.state_tracking[state.state] = {}
+            self.state_tracking[state.state]['N'] = 1
+            self.state_tracking[state.state]['Na'] = dict(zip(actions, np.zeros(len(actions))))
+            self.state_tracking[state.state]['Vc'] = 0
+            self.state_tracking[state.state]['Qr'] = dict(zip(actions, np.zeros(len(actions))))
+            self.state_tracking[state.state]['Qc'] = dict(zip(actions, np.zeros(len(actions))))
         self.node_counter += 1
         # for plot purpose
         # action_ = ",".join(map(str,action))
@@ -267,22 +306,28 @@ class MctsSim:
         # if the previous code on checking whether next_state is in the child node
         # not working, there will an IndexError here            
         R = RC[0]
-        if RC[1] > 1:
-            RC[1] = 1
+        # if RC[1] > 1:
+        #     RC[1] = 1
         C = RC[1]
         
         #assert C <= 1
         # backpropagation
         self.tree.nodes[node]['N'] += 1
+        self.state_tracking[state.state]['N'] +=1
         Vc = self.tree.nodes[node]['Vc']
         self.tree.nodes[node]['Vc'] = Vc + (C-Vc)/self.tree.nodes[node]['N']
+        self.state_tracking[state.state]['Vc'] = Vc + (C-Vc)/self.tree.nodes[node]['N']
+        
         
         #print('Nsa is {}'.format(self.tree.nodes[node]['Na'][action]))
         self.tree.nodes[node]['Na'][action] += 1
+        self.state_tracking[state.state]['Na'][action] += 1
         Qr = self.tree.nodes[node]['Qr'][action]
         Qc = self.tree.nodes[node]['Qc'][action]
         self.tree.nodes[node]['Qr'][action] = Qr + (R-Qr)/self.tree.nodes[node]['Na'][action]
+        self.state_tracking[state.state]['Qr'][action] = Qr + (R-Qr)/self.tree.nodes[node]['Na'][action]
         self.tree.nodes[node]['Qc'][action] = Qc + (C-Qc)/self.tree.nodes[node]['Na'][action]
+        self.state_tracking[state.state]['Qc'][action] = Qc + (C-Qc)/self.tree.nodes[node]['Na'][action]
         return RC
     
     def update_admissble_cost(self, action, state):
@@ -308,10 +353,10 @@ def search(state, c_hat):
     # initialize lambda
     lambda_ = 1
     # Todo: how to specify a range for lambda [0, lambda_max]
-    lambda_max = 3000
+    lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 60000
+    iters = 20000
     # Todo: number of monte carlo simulations 
     # number of times to do monte carlo simulation
     # in author's implementation this number is 1
@@ -335,12 +380,12 @@ def search(state, c_hat):
             #print('Qc {} is >= c_hat {}'.format(mcts.tree.nodes[root_node]['Qc'][action], c_hat))
 
         
-        #lambda_ += 1/(1+i/5) * at
-        lambda_ += 1/(1+i/2500) * at
+        lambda_ += 1/(1+i) * at
+        #lambda_ += 1/(1+i/2000) * at
         #print('new lambda is {}'.format(lambda_))
         #lambda_ += 1/(1+i/200) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         # lambda_ += at
-        #lambda_ += 1/(1+i/1000) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
+        #lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         if (lambda_ < 0):
             lambda_ = 0
         if (lambda_ > lambda_max):
