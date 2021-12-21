@@ -18,7 +18,7 @@ from networkx.drawing.nx_pydot import graphviz_layout
 # https://stackoverflow.com/questions/57512155/how-to-draw-a-tree-more-beautifully-in-networkx
 
 class MctsSim:
-    def __init__(self, lambda_, c_hat, root):
+    def __init__(self, root):
         # initialize a sample search tree
         self.tree = nx.DiGraph()
         self.state_tracking = {}
@@ -60,7 +60,7 @@ class MctsSim:
         assert (Ns >= 0) and (Nsa >= 0) 
         
         if (Ns <= 1) or (Nsa == 0):
-            print('Initialize UCB')
+            #print('Initialize UCB')
             return sys.maxsize
         else:
             return np.sqrt(np.log(Ns)/(Nsa+self.EPSILON))
@@ -68,6 +68,7 @@ class MctsSim:
         
     # corresponds to the GreedyPolicy in the paper    
     def GreedyPolicy(self, node, k):
+        print('doing greedy selection')
         state = self.tree.nodes[node]['state']
         depth = self.tree.nodes[node]['depth']
         # k is for exploration term
@@ -76,16 +77,24 @@ class MctsSim:
         best_action = []
         best_Q = -sys.maxsize
         for action in actions:
-            if self.tree.nodes[node]['Qr'][action] > best_Q:
+            Ns = self.tree.nodes[node]['N']
+            Nsa = self.tree.nodes[node]['Na'][action]
+            Q = self.tree.nodes[node]['Qr'][action] + k * self.ucb(Ns, Nsa)
+            print('action is {}, Ns is {}, Nas is {}, Q is {}'.format(action, Ns, Nsa, Q))
+            if Q > best_Q:
                 best_action = action
-                best_Q = self.tree.nodes[node]['Qr'][action]
-        print('state {}, best action is {}'.format(state.state, best_action))
+                best_Q = Q
+        #print('state {}, best action is {}'.format(state.state, best_action))
+        print('select action {}'.format(best_action))
         return best_action
 
 
     # expansion
     def expansion(self, node, parent_node, action, state, depth):
-        
+        print('expand from node {} to {}'.format(parent_node, node))
+        curr_state = state
+        parent_state = self.tree.nodes[parent_node]['state']
+        print('from state {} to state {}'.format(parent_state.state, curr_state.state))
         actions = self.simulator.actions(state)
         # N is the number of times that this state has been visited
         # Na is a dictionary to track the the number of times of (s, a) 
@@ -124,7 +133,7 @@ class MctsSim:
         # action_ = ",".join(map(str,action))
         self.tree.add_edge(parent_node, node, action=action)
         # for debug visualization
-        #visulize_tree(self.tree)
+        visulize_tree(self.tree)
         return
     
     # default policy for rollout
@@ -149,6 +158,7 @@ class MctsSim:
         action = self.default_policy(state)
         #print('transition from state {} by taking action {} in roll_out'.format(state.state, action))
         next_state, reward, cost, done = self.simulator.transition(state, action)
+        print('rollout from state {} to next state {}'.format(state.state, next_state.state))
         
         if done:
             return np.array([0, 0])
@@ -167,21 +177,14 @@ class MctsSim:
     # Simulate 
     def simulate(self, node, depth):
         state = self.tree.nodes[node]['state']
-        #print('we are now in node {} with state {}'.format(node, state.state))
+        print('we are now in node {} with state {}, depth is {}'.format(node, state.state, depth))
        
         # Todo add terminal state check
         if depth == self.max_depth_simulate:
             #print('reach maximum simulate depth {}'.format(self.max_depth_simulate))
             # this is different from that in the original algorithm
             return np.array([0, 0])
-        
-        # Todo: the following two may be not necessary
-        # if self.simulator.is_collision(state):
-        #     return np.array([0, 0])
-        
-        # if self.simulator.is_goal(state):
-        #     return np.array([0, 0])
-             
+                   
         action = self.GreedyPolicy(node, self.uct_k)
         # done is a flag to show whether state is already a terminal state
         #print('transition from state {} by taking action {} in simulate'.format(state.state, action))
@@ -217,6 +220,7 @@ class MctsSim:
         
         #assert C <= 1
         # backpropagation
+        print('doing backpropagation in depth {}'.format(depth))
         self.tree.nodes[node]['N'] += 1
         self.state_tracking[state.state]['N'] +=1
         Vc = self.tree.nodes[node]['Vc']
@@ -235,49 +239,18 @@ class MctsSim:
         self.state_tracking[state.state]['Qc'][action] = Qc + (C-Qc)/self.tree.nodes[node]['Na'][action]
         return RC
              
-def search(state, c_hat):
-    # initialize lambda
-    lambda_ = 1
-    # Todo: how to specify a range for lambda [0, lambda_max]
-    lambda_max = 100
+def search(state):
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 20000
-    # Todo: number of monte carlo simulations 
-    # number of times to do monte carlo simulation
-    # in author's implementation this number is 1
-    Nmc = 1
-    mcts = MctsSim(lambda_, c_hat, state)
+    iters = 10
+
+    mcts = MctsSim(state)
     root_node = 0
     depth = 0
     for i in range(iters):
         # grow monte carlo tree
-        for j in range(Nmc):
-            # the second root_node is parent_node
-            mcts.simulate(root_node, depth)
-        action = mcts.GreedyPolicy(root_node, 0)
-        if (mcts.tree.nodes[root_node]['Qc'][action] - c_hat < 0):
-            # Todo: need to fine tune and check the implementation
-            # author's implementation is different from his formula in the paper
-            at = -1
-            #print('Qc {} is less than c_hat {}'.format(mcts.tree.nodes[root_node]['Qc'][action], c_hat))
-        else:
-            at = 1
-            #print('Qc {} is >= c_hat {}'.format(mcts.tree.nodes[root_node]['Qc'][action], c_hat))
+        mcts.simulate(root_node, depth)
 
-        
-        lambda_ += 1/(1+i) * at
-        #lambda_ += 1/(1+i/2000) * at
-        #print('new lambda is {}'.format(lambda_))
-        #lambda_ += 1/(1+i/200) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
-        # lambda_ += at
-        #lambda_ += 1/(1+i) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
-        if (lambda_ < 0):
-            lambda_ = 0
-        if (lambda_ > lambda_max):
-            lambda_ = lambda_max
-        mcts.lambda_ = lambda_
-        #print('lambda is {}'.format(mcts.lambda_))
     return mcts
         
 def visulize_tree(tree):
@@ -305,13 +278,14 @@ if __name__ == "__main__":
     # https://stackoverflow.com/questions/29586520/can-one-get-hierarchical-graphs-from-networkx-with-python-3/29597209#29597209
     
     state = State()
-    c_hat = 0.9
-    mcts = search(state, c_hat)
-    visulize_tree(mcts.tree)
-
-    print('mcts nodes: {}'.format(mcts.tree.nodes))
-    
-    
+    state.state = (2, 1)
+    mcts = search(state)
+    #visulize_tree(mcts.tree)
+    action = mcts.GreedyPolicy(0, 0)
+    print('best action is {}'.format(action))
+    #print('mcts nodes: {}'.format(mcts.tree.nodes))
+    print('Na is {}'.format(mcts.tree.nodes[0]['Na']))
+    print('Qr is {}'.format(mcts.tree.nodes[0]['Qr']))
     
     
     

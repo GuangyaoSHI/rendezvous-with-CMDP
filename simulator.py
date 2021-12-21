@@ -58,6 +58,7 @@ class Simulator:
         return neighbors
     # return (next_state, reward, cost)
     def transition(self, state, action):
+        print('transit from state {} by taking action {}'.format(state.state, action))
         next_state = State()
         reward = -1
         cost = 0
@@ -68,7 +69,7 @@ class Simulator:
         done = False
         # check whether robot is already in goal or has collided with obstacles
         if state.state == self.goal:
-            #print('already reach goal state')
+            print('already reach goal state')
             reward = 0
             cost = 0
             done = True
@@ -76,8 +77,8 @@ class Simulator:
         
         # if self.is_collision(state):
         #     #print('already collide with obstacles')
-        #     reward = -1
-        #     cost = 1
+        #     reward = 0
+        #     cost = 0
         #     done = True
         #     return (state, reward, cost, done)
         
@@ -93,12 +94,14 @@ class Simulator:
             actions.remove(action)
             assert len(actions) >= 1
             next_state.state = random.sample(actions, 1)[0]
+            
+            print('choose to go {} but result in {} due to randomness'.format(action, next_state.state))
     
         if next_state.state == self.goal:
-            reward = 1000
+            reward = 0
             cost = 0
         elif self.is_collision(next_state):
-            reward = -10000
+            reward = -1
             cost = 1
         else:
             reward = -1
@@ -132,7 +135,7 @@ if __name__ == "__main__":
     actions = simulator.actions(root)
     print('available actions: {}'.format(actions))
     action = actions[-1]
-    next_state, reward, cost = simulator.transition(root, action)
+    next_state, reward, cost, done = simulator.transition(root, action)
     print('take action {} and transit to {}'.format(action, next_state.state))
     print('reward is {}'.format(reward))
     print('cost is {}'.format(cost))
@@ -146,7 +149,7 @@ if __name__ == "__main__":
     actions = simulator.actions(root)
     print('available actions: {}'.format(actions))
     action = actions[-1]
-    next_state, reward, cost = simulator.transition(root, action)
+    next_state, reward, cost, done = simulator.transition(root, action)
     print('take action {} and transit to {}'.format(action, next_state.state))
     print('reward is {}'.format(reward))
     print('cost is {}'.format(cost))
@@ -160,7 +163,7 @@ if __name__ == "__main__":
     actions = simulator.actions(root)
     print('available actions: {}'.format(actions))
     action = actions[-1]
-    next_state, reward, cost = simulator.transition(root, action)
+    next_state, reward, cost, done = simulator.transition(root, action)
     print('take action {} and transit to {}'.format(action, next_state.state))
     print('reward is {}'.format(reward))
     print('cost is {}'.format(cost))
