@@ -32,9 +32,7 @@ class MctsSim:
         # shrinking factor
         self.gamma = 1
         # lambda
-        self.lambda_ = lambda_
         self.simulator = Simulator()
-        self.c_hat = c_hat
         actions = self.simulator.actions(root)
         self.node_counter = 0
         # node is indexed by a number in the tree
@@ -55,14 +53,13 @@ class MctsSim:
         self.state_tracking[root.state]['Qr'] = dict(zip(actions, np.zeros(len(actions))))
         self.state_tracking[root.state]['Qc'] = dict(zip(actions, np.zeros(len(actions))))
         self.node_counter += 1
-        self.latest_policy = {}
         
         
     def ucb(self, Ns, Nsa):
         #print('Ns is {}, Nsa is {}'.format(Ns, Nsa))
         assert (Ns >= 0) and (Nsa >= 0) 
         
-        if (Ns == 0) or (Nsa == 0):
+        if (Ns <= 1) or (Nsa == 0):
             print('Initialize UCB')
             return sys.maxsize
         else:
@@ -76,108 +73,16 @@ class MctsSim:
         # k is for exploration term
         # actions is a list of actions
         actions = self.simulator.actions(state)
-        #print('state is {} actions are {}'.format(state.state, actions))
-        # find action star, which is a list
-        action_star = []
-        Qplus_star = -sys.maxsize
+        best_action = []
+        best_Q = -sys.maxsize
         for action in actions:
-            #print('node is {}'.format(node))
-            Qr = self.tree.nodes[node]['Qr'][action]
-            Qc = self.tree.nodes[node]['Qc'][action]
-            Ns = self.tree.nodes[node]['N']
-            Nsa = self.tree.nodes[node]['Na'][action]
-            #print('Qr is {}, Qc is {}, Ns is {}, Nsa is {}'.format(Qr, Qc, Ns, Nsa))
-            # a small number is added to numerator for numerical stability
-            # Todo: should I follow author's implementation on UCB?
-            #print('lambda is {}, k is {}'.format(self.lambda_, k))
-            #print('ucb is {}'.format(self.ucb(Ns, Nsa)))
-            Qplus =  Qr - self.lambda_*Qc + k * self.ucb(Ns, Nsa)
-            print('Qr: {}, Qc: {}, ucb:{}, lambda:{}, Qplus:{}'.format(Qr, Qc, k *self.ucb(Ns, Nsa), self.lambda_, Qplus))
-            #print('Qplus is {}'.format(Qplus))
-            if  Qplus >= Qplus_star:
-                # Todo: does this part matter?
-                # strictly follow author's implementation
-                # it is actually a little bit probalematic 
-                # only one element in the action_star set
-                if Qplus > Qplus_star:
-                    #print('action_star is cleared')
-                    action_star = []
-                Qplus_star = Qplus
-                action_star.append(action)
-                #print('action_star is {}'.format(action_star))
-        assert len(action_star) >= 1
-        # if len(action_star) > 1:
-        #     print('there are {} actions in action_star'.format(len(action_star)))
-        # sample from the action star
-        best_action = random.sample(action_star, 1)[0]
-        # find minCost minCostAction
-        # maxCost maxCostAction
-        # this part also strictly follows the author's implementation
-        biasconstant = np.exp(depth) * 0.1
-        minCost = sys.maxsize
-        maxCost = -sys.maxsize
-        # initialize the min/max cost action
-        minCostAction = best_action
-        maxCostAction = best_action
-        
-        best_action_N = self.tree.nodes[node]['Na'][best_action]
-        best_action_Qr = self.tree.nodes[node]['Qr'][best_action]
-        best_action_Qc = self.tree.nodes[node]['Qc'][best_action]
-        best_action_Q = best_action_Qr - self.lambda_ * best_action_Qc
-        best_action_bias = biasconstant * np.log(best_action_N + 1)/(best_action_N + 1)
-        
-        for action in actions:
-            Qr = self.tree.nodes[node]['Qr'][action]
-            Qc = self.tree.nodes[node]['Qc'][action]
-            Nsa = self.tree.nodes[node]['Na'][action]
-            Q = Qr - self.lambda_*Qc
-            action_bias = biasconstant * (np.log(Nsa + 1)/(Nsa + 1))
-            # Todo: test deterministic case
-            threshold = best_action_bias + action_bias
-            # bestQ is Q above
-            # author's implementation is a little bit problematic
-            if (abs(Q-best_action_Q) <= threshold):
-                if Qc < minCost:
-                    minCost = Qc
-                    minCostAction = action
-                if Qc > maxCost:
-                    maxCost = Qc
-                    maxCostAction = action
-        
-  
-        # compute policy as a probability distrbution over minCostAction
-        # and maxCostAction
-        assert minCost <= maxCost
-        prob_minCost = 0
-        #prob_maxCost = 1 - prob_minCost
-        if maxCost <= self.c_hat:
-            prob_minCost = 0
-            #prob_maxCost = 1 - prob_minCost
-        elif (minCost >= self.c_hat):
-            prob_minCost = 1
-            #prob_maxCost = 1 - prob_minCost
-        else:
-            prob_minCost = (maxCost - self.c_hat) / (maxCost - minCost)
-            #prob_maxCost = 1 - prob_minCost
-        
-        assert 0 <= prob_minCost <= 1
-        # keep track of latest greedy policy for visualization
-        self.latest_policy = {'minCostAction': minCostAction,
-                              'maxCostAction': maxCostAction,
-                              'prob_minCost': prob_minCost}
-        
-        # if (minCostAction != maxCostAction):
-        #     print('minCostAction {} is different from maxCostAction {}'.format(minCostAction, maxCostAction))
-        if random.random() <= prob_minCost:
-            return minCostAction
-            # for debug
-            assert minCostAction in actions
-        else:
-            return maxCostAction
-            # for debug
-            assert maxCostAction in actions
-        
-    
+            if self.tree.nodes[node]['Qr'][action] > best_Q:
+                best_action = action
+                best_Q = self.tree.nodes[node]['Qr'][action]
+        print('state {}, best action is {}'.format(state.state, best_action))
+        return best_action
+
+
     # expansion
     def expansion(self, node, parent_node, action, state, depth):
         
@@ -329,26 +234,7 @@ class MctsSim:
         self.tree.nodes[node]['Qc'][action] = Qc + (C-Qc)/self.tree.nodes[node]['Na'][action]
         self.state_tracking[state.state]['Qc'][action] = Qc + (C-Qc)/self.tree.nodes[node]['Na'][action]
         return RC
-    
-    def update_admissble_cost(self, action, state):
-        root = self.tree.nodes[0]['state']
-        assert action in self.simulator.actions(root)
-        c_hat = -sys.maxsize
-        for node in self.tree.successors(0):
-            #print('action is {} and next_state is {}'.format(action, state.state))
-            #print('edge between node {} and root is {}'.format(node, self.tree.edges[0, node]))
-            #print('node state is {}'.format(self.tree.nodes[node]['state'].state))
-            #print('action is {}'.format(self.tree.edges[0, node]['action']))
-            if (self.tree.nodes[node]['state'].state == state.state) and (self.tree.edges[0, node]['action'] == action):
-                return self.tree.nodes[node]['Vc']
-            
-            if self.tree.nodes[node]['Vc'] > c_hat:
-                c_hat = self.tree.nodes[node]['Vc']
-            
-        print('state {} has not been visited before and return max Vc of children'.format(state.state))
-        return c_hat
-                   
-            
+             
 def search(state, c_hat):
     # initialize lambda
     lambda_ = 1

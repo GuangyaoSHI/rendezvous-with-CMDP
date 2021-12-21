@@ -18,7 +18,7 @@ class State:
     def __key(self):
         return self.__str__()
     
-    def __eq__(x, y):
+    def __eq__(self, x, y):
         return x.__key() == y.__key()
     
     def __hash__(self):
@@ -95,10 +95,10 @@ class Simulator:
             next_state.state = random.sample(actions, 1)[0]
     
         if next_state.state == self.goal:
-            reward = 0
+            reward = 1000
             cost = 0
         elif self.is_collision(next_state):
-            reward = -1
+            reward = -10000
             cost = 1
         else:
             reward = -1
