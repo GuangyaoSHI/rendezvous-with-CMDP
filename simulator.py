@@ -58,7 +58,7 @@ class Simulator:
         return neighbors
     # return (next_state, reward, cost)
     def transition(self, state, action):
-        print('transit from state {} by taking action {}'.format(state.state, action))
+        #print('transit from state {} by taking action {}'.format(state.state, action))
         next_state = State()
         reward = -1
         cost = 0
@@ -75,12 +75,12 @@ class Simulator:
             done = True
             return (state, reward, cost, done)
         
-        # if self.is_collision(state):
-        #     #print('already collide with obstacles')
-        #     reward = 0
-        #     cost = 0
-        #     done = True
-        #     return (state, reward, cost, done)
+        if self.is_collision(state):
+            print('already collide with obstacles')
+            reward = 0
+            cost = 0
+            done = True
+            return (state, reward, cost, done)
         
         # Todo: a better motion model
         if np.random.binomial(1, 0.99):
@@ -98,13 +98,13 @@ class Simulator:
             print('choose to go {} but result in {} due to randomness'.format(action, next_state.state))
     
         if next_state.state == self.goal:
-            reward = 0
+            reward = 1
             cost = 0
         elif self.is_collision(next_state):
             reward = -1
             cost = 1
         else:
-            reward = -1
+            reward = 0
             cost = 0
             
         return (next_state, reward, cost, done)

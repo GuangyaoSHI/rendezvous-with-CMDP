@@ -25,7 +25,7 @@ policies = {}
 for x in range(0,7):
     for y in range(0,7):
         state = State(state=(x,y))
-        mcts_policy = search(state, c_hat)
+        mcts_policy = search(state)
         print('Qc: {}'.format(mcts_policy.tree.nodes[0]['Qc']))
         policies[(x, y)] = mcts_policy
 

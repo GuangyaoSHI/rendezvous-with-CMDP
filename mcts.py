@@ -79,8 +79,9 @@ class MctsSim:
         for action in actions:
             Ns = self.tree.nodes[node]['N']
             Nsa = self.tree.nodes[node]['Na'][action]
-            Q = self.tree.nodes[node]['Qr'][action] + k * self.ucb(Ns, Nsa)
-            print('action is {}, Ns is {}, Nas is {}, Q is {}'.format(action, Ns, Nsa, Q))
+            Qr = self.tree.nodes[node]['Qr'][action]
+            Q = Qr + k * self.ucb(Ns, Nsa)
+            print('action is {}, Ns is {}, Nas is {}, Qr is {}, ucb is {}, Q is {}'.format(action, Ns, Nsa, Qr, self.ucb(Ns, Nsa), Q))
             if Q > best_Q:
                 best_action = action
                 best_Q = Q
@@ -133,7 +134,7 @@ class MctsSim:
         # action_ = ",".join(map(str,action))
         self.tree.add_edge(parent_node, node, action=action)
         # for debug visualization
-        visulize_tree(self.tree)
+        #visulize_tree(self.tree)
         return
     
     # default policy for rollout
@@ -158,7 +159,7 @@ class MctsSim:
         action = self.default_policy(state)
         #print('transition from state {} by taking action {} in roll_out'.format(state.state, action))
         next_state, reward, cost, done = self.simulator.transition(state, action)
-        print('rollout from state {} to next state {}'.format(state.state, next_state.state))
+        #print('rollout from state {} to next state {}'.format(state.state, next_state.state))
         
         if done:
             return np.array([0, 0])
@@ -242,7 +243,7 @@ class MctsSim:
 def search(state):
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 10
+    iters = 5000
 
     mcts = MctsSim(state)
     root_node = 0
@@ -278,7 +279,7 @@ if __name__ == "__main__":
     # https://stackoverflow.com/questions/29586520/can-one-get-hierarchical-graphs-from-networkx-with-python-3/29597209#29597209
     
     state = State()
-    state.state = (2, 1)
+    state.state = (6, 6)
     mcts = search(state)
     #visulize_tree(mcts.tree)
     action = mcts.GreedyPolicy(0, 0)
