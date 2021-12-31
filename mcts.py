@@ -25,7 +25,7 @@ class MctsSim:
         # Prevents division by 0 in calculation of UCT
         self.EPSILON = 10e-6
         # UCB coefficient
-        self.uct_k = np.sqrt(2)
+        self.uct_k = 30*np.sqrt(2)
         # maximum depth
         self.max_depth_roll_out = 100
         self.max_depth_simulate = 40
@@ -53,7 +53,7 @@ class MctsSim:
     def ucb(self, Ns, Nsa):
         #print('Ns is {}, Nsa is {}'.format(Ns, Nsa))
         assert (Ns >= 0) and (Nsa >= 0) 
-        if (Ns == 0) or (Nsa == 0):
+        if (Ns <= 1) or (Nsa == 0):
             return sys.maxsize
         else:
             return np.sqrt(np.log(Ns)/(Nsa+self.EPSILON))
@@ -76,13 +76,13 @@ class MctsSim:
             Qc = self.tree.nodes[node]['Qc'][action]
             Ns = self.tree.nodes[node]['N']
             Nsa = self.tree.nodes[node]['Na'][action]
-            #print('Qr is {}, Qc is {}, Ns is {}, Nsa is {}'.format(Qr, Qc, Ns, Nsa))
+            print('Qr is {}, Qc is {}, Ns is {}, Nsa is {}'.format(Qr, Qc, Ns, Nsa))
             # a small number is added to numerator for numerical stability
             # Todo: should I follow author's implementation on UCB?
-            #print('lambda is {}, k is {}'.format(self.lambda_, k))
-            #print('ucb is {}'.format(self.ucb(Ns, Nsa)))
+            print('lambda is {}, k is {}'.format(self.lambda_, k))
+            print('ucb is {}'.format(self.ucb(Ns, Nsa)))
             Qplus =  Qr - self.lambda_*Qc + k * self.ucb(Ns, Nsa)
-            #print('Qplus is {}'.format(Qplus))
+            print('Qplus is {}'.format(Qplus))
             if  Qplus >= Qplus_star:
                 # Todo: does this part matter?
                 # strictly follow author's implementation
@@ -206,6 +206,7 @@ class MctsSim:
         #print('transition from state {} by taking action {} in roll_out'.format(state.state, action))
         next_state, reward, cost, done = self.simulator.transition(state, action)
         
+        # done is used to decide whether the current state is the terminal state
         if done:
             return np.array([0, 0])
         # Todo: will this cause the robot to choose to go into obstacles to 
@@ -267,8 +268,7 @@ class MctsSim:
         # if the previous code on checking whether next_state is in the child node
         # not working, there will an IndexError here            
         R = RC[0]
-        if RC[1] > 1:
-            RC[1] = 1
+
         C = RC[1]
         
         #assert C <= 1
@@ -308,10 +308,10 @@ def search(state, c_hat):
     # initialize lambda
     lambda_ = 1
     # Todo: how to specify a range for lambda [0, lambda_max]
-    lambda_max = 3000
+    lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 60000
+    iters = 6000
     # Todo: number of monte carlo simulations 
     # number of times to do monte carlo simulation
     # in author's implementation this number is 1
@@ -336,7 +336,7 @@ def search(state, c_hat):
 
         
         #lambda_ += 1/(1+i/5) * at
-        lambda_ += 1/(1+i/2500) * at
+        lambda_ += 1/(1+i) * at
         #print('new lambda is {}'.format(lambda_))
         #lambda_ += 1/(1+i/200) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         # lambda_ += at
@@ -346,7 +346,7 @@ def search(state, c_hat):
         if (lambda_ > lambda_max):
             lambda_ = lambda_max
         mcts.lambda_ = lambda_
-        #print('lambda is {}'.format(mcts.lambda_))
+        print('lambda is {}'.format(mcts.lambda_))
     return mcts
         
 def visulize_tree(tree):
@@ -374,11 +374,22 @@ if __name__ == "__main__":
     # https://stackoverflow.com/questions/29586520/can-one-get-hierarchical-graphs-from-networkx-with-python-3/29597209#29597209
     
     state = State()
-    c_hat = 0.9
+    c_hat = 0.2
     mcts = search(state, c_hat)
-    visulize_tree(mcts.tree)
-
-    print('mcts nodes: {}'.format(mcts.tree.nodes))
+    #visulize_tree(mcts.tree)
+    action = mcts.GreedyPolicy(0, 0)
+    #print('mcts nodes: {}'.format(mcts.tree.nodes))
+    print('best action is {}'.format(action))
+    print('Na is {}'.format(mcts.tree.nodes[0]['Na']))
+    print('Qr is {}'.format(mcts.tree.nodes[0]['Qr']))
+    print('Qc is {}'.format(mcts.tree.nodes[0]['Qc']))
+    print('lambda is {}'.format(mcts.lambda_))
+    Qc = {}
+    for action in mcts.tree.nodes[0]['Qc']:
+        Qc[action] = mcts.tree.nodes[0]['Qc'][action]/1.5
+    print('Normalized Qc: {}'.format(Qc))
+    
+    
     
     
     

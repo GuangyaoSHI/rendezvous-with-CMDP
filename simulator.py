@@ -7,6 +7,7 @@ Created on Mon Dec  6 21:00:50 2021
 import numpy as np
 import networkx as nx
 import random
+import matplotlib.pyplot as plt
 
 class State:
     def __init__(self, state = (0, 0)):
@@ -33,7 +34,9 @@ class Simulator:
     def __init__(self, start=(0, 0), goal=(6, 0)):
         self.start = start
         self.goal = goal
-        self.G = nx.grid_2d_graph(7, 7)
+        self.G = nx.DiGraph()
+        self.G_ = nx.grid_2d_graph(7, 7)
+        self.G.add_nodes_from(self.G_.nodes)
         pos = dict(zip(self.G.nodes, self.G.nodes))
         self.G.graph['pos'] = pos
         # obstacle list
@@ -45,14 +48,23 @@ class Simulator:
             else:
                 colors.append('#1f78b4')
         self.G.graph['node_color'] = colors
-    
+        self.generate_map()
+        nx.draw(self.G, pos)
+        plt.show()
+        
     # return available actions in state, represented as a list
     def actions(self, state):
         # if it is a terminal/absorbing state, robot can only stay in this state
         if self.is_goal(state):
+            print('in the goal state, no actions available')
             return [state.state]
+        
+        if self.is_collision(state):
+            print('collision state, no actions available')
+            return [state.state]
+        
         neighbors = [neighbor for neighbor in self.G.neighbors(state.state)]
-        return [state.state] + neighbors
+        return neighbors
     
     # return (next_state, reward, cost)
     def transition(self, state, action):
@@ -66,38 +78,41 @@ class Simulator:
         done = False
         # check whether robot is already in goal or has collided with obstacles
         if state.state == self.goal:
-            #print('already reach goal state')
+            print('already reach goal state, no transition needed')
             reward = 0
             cost = 0
             done = True
             return (state, reward, cost, done)
         
-        # if self.is_collision(state):
-        #     #print('already collide with obstacles')
-        #     reward = -1
-        #     cost = 1
-        #     done = True
-        #     return (state, reward, cost, done)
+        if self.is_collision(state):
+            print('already collide with obstacles, no transition needed')
+            reward = 0
+            cost = 0
+            done = True
+            return (state, reward, cost, done)
         
         # Todo: a better motion model
-        if np.random.binomial(1, 1):
+        if np.random.binomial(1, 0.99):
             next_state.state = action
         else:
             if len(actions) == 1:
                 print('state is {} and actions are {}'.format(state.state, actions))
+                next_state.state = random.sample(actions, 1)[0]
+            else:
             #print('avaible actions are {}'.format(actions))
             #print('remove action {} and sample the rest'.format(action))
             #print('state is {}; action is {}; actions are {}'.format(state.state, action, actions))
-            actions.remove(action)
-            assert len(actions) >= 1
-            next_state.state = random.sample(actions, 1)[0]
+                actions.remove(action)
+                assert len(actions) >= 1
+                next_state.state = random.sample(actions, 1)[0]
+                print('take action {} in state {} but transit to {}'.format(action, state.state, next_state.state))
     
         if next_state.state == self.goal:
             reward = 0
             cost = 0
         elif self.is_collision(next_state):
             reward = -1
-            cost = 1
+            cost = 1.5
         else:
             reward = -1
             cost = 0
@@ -120,7 +135,36 @@ class Simulator:
             return True
         else:
             return False
+    
+    def generate_map(self):   
+        for i in range(0, 3):
+            # add vertical edges to the graph G
+            for j in range(0, 6):
+                self.G.add_edge((i, j), (i, j+1))
+            # add horizontal edges
+            for j in range(0, 7):
+                self.G.add_edge((i, j), (i+1, j))
         
+        for i in range(4, 7):
+            for j in range(0, 6):
+                self.G.add_edge((i, j+1), (i, j))
+            
+            for j in range(0, 7):
+                if i<6:
+                    self.G.add_edge((i, j), (i+1, j))
+        
+        for i in range(3, 6):
+            self.G.add_edge((3, i), (3, i+1))
+        self.G.add_edge((3, 3), (3, 2))
+        
+        for i in range(3, 7):
+            self.G.add_edge((3, i), (4, i))
+        
+        for i in range(0, 3):
+            self.G.add_edge((4, i), (3, i))
+        
+        
+                      
         
 if __name__ == "__main__":
     print('test simulator')
@@ -130,7 +174,7 @@ if __name__ == "__main__":
     actions = simulator.actions(root)
     print('available actions: {}'.format(actions))
     action = actions[-1]
-    next_state, reward, cost = simulator.transition(root, action)
+    next_state, reward, cost, done = simulator.transition(root, action)
     print('take action {} and transit to {}'.format(action, next_state.state))
     print('reward is {}'.format(reward))
     print('cost is {}'.format(cost))
@@ -144,7 +188,7 @@ if __name__ == "__main__":
     actions = simulator.actions(root)
     print('available actions: {}'.format(actions))
     action = actions[-1]
-    next_state, reward, cost = simulator.transition(root, action)
+    next_state, reward, cost, done = simulator.transition(root, action)
     print('take action {} and transit to {}'.format(action, next_state.state))
     print('reward is {}'.format(reward))
     print('cost is {}'.format(cost))
@@ -158,7 +202,7 @@ if __name__ == "__main__":
     actions = simulator.actions(root)
     print('available actions: {}'.format(actions))
     action = actions[-1]
-    next_state, reward, cost = simulator.transition(root, action)
+    next_state, reward, cost, done = simulator.transition(root, action)
     print('take action {} and transit to {}'.format(action, next_state.state))
     print('reward is {}'.format(reward))
     print('cost is {}'.format(cost))
