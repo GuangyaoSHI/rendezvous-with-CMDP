@@ -14,3 +14,7 @@ root = State()
 mcts = MctsSim(lambda_, c_hat, root)
 RC = mcts.roll_out(root, 0)
 print(RC)
+
+
+
+# visualize rendezvous environment
