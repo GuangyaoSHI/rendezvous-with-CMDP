@@ -112,7 +112,7 @@ class Simulator:
             cost = 0
         elif self.is_collision(next_state):
             reward = -1
-            cost = 1.5
+            cost = 2.7
         else:
             reward = -1
             cost = 0

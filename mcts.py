@@ -25,7 +25,7 @@ class MctsSim:
         # Prevents division by 0 in calculation of UCT
         self.EPSILON = 10e-6
         # UCB coefficient
-        self.uct_k = 30*np.sqrt(2)
+        self.uct_k = 20*np.sqrt(2)
         # maximum depth
         self.max_depth_roll_out = 100
         self.max_depth_simulate = 40
@@ -311,7 +311,7 @@ def search(state, c_hat):
     lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 6000
+    iters = 4000
     # Todo: number of monte carlo simulations 
     # number of times to do monte carlo simulation
     # in author's implementation this number is 1
@@ -374,7 +374,8 @@ if __name__ == "__main__":
     # https://stackoverflow.com/questions/29586520/can-one-get-hierarchical-graphs-from-networkx-with-python-3/29597209#29597209
     
     state = State()
-    c_hat = 0.2
+    state.state = (0, 1)
+    c_hat = 0.1
     mcts = search(state, c_hat)
     #visulize_tree(mcts.tree)
     action = mcts.GreedyPolicy(0, 0)
@@ -386,7 +387,7 @@ if __name__ == "__main__":
     print('lambda is {}'.format(mcts.lambda_))
     Qc = {}
     for action in mcts.tree.nodes[0]['Qc']:
-        Qc[action] = mcts.tree.nodes[0]['Qc'][action]/1.5
+        Qc[action] = mcts.tree.nodes[0]['Qc'][action]/2.7
     print('Normalized Qc: {}'.format(Qc))
     
     
