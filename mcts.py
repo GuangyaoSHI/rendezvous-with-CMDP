@@ -25,7 +25,7 @@ class MctsSim:
         # Prevents division by 0 in calculation of UCT
         self.EPSILON = 10e-6
         # UCB coefficient
-        self.uct_k = 20*np.sqrt(2)
+        self.uct_k = 16*np.sqrt(2)
         # maximum depth
         self.max_depth_roll_out = 100
         self.max_depth_simulate = 40
@@ -33,6 +33,9 @@ class MctsSim:
         self.gamma = 1
         # lambda
         self.lambda_ = lambda_
+        # keep track of lambda 
+        self.lambda_history = [self.lambda_]
+    
         self.simulator = Simulator()
         self.c_hat = c_hat
         actions = self.simulator.actions(root)
@@ -49,7 +52,9 @@ class MctsSim:
                            Qc=dict(zip(actions, np.zeros(len(actions)))),
                            )
         self.node_counter += 1
-        
+        self.Qr_history = [copy.deepcopy(self.tree.nodes[0]['Qr'])]
+        self.Qc_history = [copy.deepcopy(self.tree.nodes[0]['Qc'])]
+    
     def ucb(self, Ns, Nsa):
         #print('Ns is {}, Nsa is {}'.format(Ns, Nsa))
         assert (Ns >= 0) and (Nsa >= 0) 
@@ -76,13 +81,13 @@ class MctsSim:
             Qc = self.tree.nodes[node]['Qc'][action]
             Ns = self.tree.nodes[node]['N']
             Nsa = self.tree.nodes[node]['Na'][action]
-            print('Qr is {}, Qc is {}, Ns is {}, Nsa is {}'.format(Qr, Qc, Ns, Nsa))
+            #print('Qr is {}, Qc is {}, Ns is {}, Nsa is {}'.format(Qr, Qc, Ns, Nsa))
             # a small number is added to numerator for numerical stability
             # Todo: should I follow author's implementation on UCB?
-            print('lambda is {}, k is {}'.format(self.lambda_, k))
-            print('ucb is {}'.format(self.ucb(Ns, Nsa)))
+            #print('lambda is {}, k is {}'.format(self.lambda_, k))
+            #print('ucb is {}'.format(k*self.ucb(Ns, Nsa)))
             Qplus =  Qr - self.lambda_*Qc + k * self.ucb(Ns, Nsa)
-            print('Qplus is {}'.format(Qplus))
+            #print('Qplus is {}'.format(Qplus))
             if  Qplus >= Qplus_star:
                 # Todo: does this part matter?
                 # strictly follow author's implementation
@@ -121,6 +126,8 @@ class MctsSim:
             action_bias = biasconstant * (np.log(Nsa + 1)/(Nsa + 1))
             # Todo: test deterministic case
             threshold = best_action_bias + action_bias
+            
+            #print('best_action_bias is {}, action_bias is {}'.format(best_action_bias, action_bias))
             # bestQ is Q above
             # author's implementation is a little bit problematic
             if (abs(Q-best_action_Q) <= threshold):
@@ -191,7 +198,24 @@ class MctsSim:
         # for debug 
         assert action in actions
         return action
-        
+    
+    def root_policy(self):
+        state = self.tree.nodes[0]['state']
+        actions = self.simulator.actions(state)
+        print('available actions {}'.format(actions))
+        # find actions whose expected cost is less than threshold
+        actions_c = {}
+        for action in actions:
+            if self.tree.nodes[0]['Qc'][action] <= self.c_hat:             
+                actions_c[self.tree.nodes[0]['Qr'][action]] = action
+        print('cost-constrained Qr-actions {}'.format(actions_c))
+        if not actions_c:
+            return 'empty'
+        else:
+            max_Qr = max(actions_c, key=actions_c.get)
+            return actions_c[max_Qr]
+                
+
     def roll_out(self, state, depth):
         if depth == self.max_depth_roll_out:
             return np.array([0, 0])
@@ -232,7 +256,7 @@ class MctsSim:
             # this is different from that in the original algorithm
             return np.array([0, 0])
         
-        # Todo: the following two may be not necessary
+        # Todo: the following two check the terminal 
         # if self.simulator.is_collision(state):
         #     return np.array([0, 0])
         
@@ -283,6 +307,9 @@ class MctsSim:
         Qc = self.tree.nodes[node]['Qc'][action]
         self.tree.nodes[node]['Qr'][action] = Qr + (R-Qr)/self.tree.nodes[node]['Na'][action]
         self.tree.nodes[node]['Qc'][action] = Qc + (C-Qc)/self.tree.nodes[node]['Na'][action]
+        if node == 0:
+            self.Qc_history.append(copy.deepcopy(self.tree.nodes[node]['Qc']))
+            self.Qr_history.append(copy.deepcopy(self.tree.nodes[node]['Qr']))
         return RC
     
     def update_admissble_cost(self, action, state):
@@ -311,9 +338,9 @@ def search(state, c_hat):
     lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 4000
+    iters = 40000
     # Todo: number of monte carlo simulations 
-    # number of times to do monte carlo simulation
+    # number of t   imes to do monte carlo simulation
     # in author's implementation this number is 1
     Nmc = 1
     mcts = MctsSim(lambda_, c_hat, state)
@@ -333,20 +360,20 @@ def search(state, c_hat):
         else:
             at = 1
             #print('Qc {} is >= c_hat {}'.format(mcts.tree.nodes[root_node]['Qc'][action], c_hat))
-
-        
-        #lambda_ += 1/(1+i/5) * at
-        lambda_ += 1/(1+i) * at
+      
+        lambda_ += 1/(1+i/40) * (mcts.tree.nodes[0]['Qc'][action] - c_hat)
+        #lambda_ += 1/(1+i/40) * at
         #print('new lambda is {}'.format(lambda_))
         #lambda_ += 1/(1+i/200) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         # lambda_ += at
         #lambda_ += 1/(1+i/1000) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
         if (lambda_ < 0):
             lambda_ = 0
-        if (lambda_ > lambda_max):
-            lambda_ = lambda_max
+        #if (lambda_ > lambda_max):
+            #lambda_ = lambda_max
         mcts.lambda_ = lambda_
-        print('lambda is {}'.format(mcts.lambda_))
+        mcts.lambda_history.append(mcts.lambda_)
+        #print('lambda is {}'.format(mcts.lambda_))
     return mcts
         
 def visulize_tree(tree):
@@ -374,28 +401,59 @@ if __name__ == "__main__":
     # https://stackoverflow.com/questions/29586520/can-one-get-hierarchical-graphs-from-networkx-with-python-3/29597209#29597209
     
     state = State()
-    state.state = (0, 1)
+    state.state = (4, 4)
     c_hat = 0.1
-    mcts = search(state, c_hat)
-    #visulize_tree(mcts.tree)
-    action = mcts.GreedyPolicy(0, 0)
-    #print('mcts nodes: {}'.format(mcts.tree.nodes))
-    print('best action is {}'.format(action))
-    print('Na is {}'.format(mcts.tree.nodes[0]['Na']))
-    print('Qr is {}'.format(mcts.tree.nodes[0]['Qr']))
-    print('Qc is {}'.format(mcts.tree.nodes[0]['Qc']))
-    print('lambda is {}'.format(mcts.lambda_))
-    Qc = {}
-    for action in mcts.tree.nodes[0]['Qc']:
-        Qc[action] = mcts.tree.nodes[0]['Qc'][action]/2.7
-    print('Normalized Qc: {}'.format(Qc))
-    
-    
-    
-    
-    
-    
-    
+    for i in range(10):
+        mcts = search(state, c_hat)
+        #visulize_tree(mcts.tree)
+        action = mcts.GreedyPolicy(0, 0)
+        #print('mcts nodes: {}'.format(mcts.tree.nodes))
+        print('best action is {}'.format(action))
+        print('Na is {}'.format(mcts.tree.nodes[0]['Na']))
+        print('Qr is {}'.format(mcts.tree.nodes[0]['Qr']))
+        print('Qc is {}'.format(mcts.tree.nodes[0]['Qc']))
+        print('lambda is {}'.format(mcts.lambda_))
+        Qc = {}
+        for action in mcts.tree.nodes[0]['Qc']:
+            Qc[action] = mcts.tree.nodes[0]['Qc'][action]
+        print('Normalized Qc: {}'.format(Qc))
+        
+        iters = [i for i in range(len(mcts.lambda_history))]
+        plt.plot(iters, mcts.lambda_history)
+        plt.title('$\lambda$')
+        plt.savefig('lambda_'+str(state.state[0])+'_'+str(state.state[1])+'.pdf')
+        
+        actions = mcts.simulator.actions(state)
+        fig, axs = plt.subplots(len(actions))
+        for action in actions:
+            index = actions.index(action)
+            Qr = [Q[action] for Q in mcts.Qr_history]
+            iters = [i for i in range(len(Qr))]
+            axs[index].plot(iters, Qr)
+            title = 'Qr for action ' + str(action)
+            axs[index].set_title(title)
+        fig.tight_layout(pad=1.0)    
+        fig.savefig('Qr_'+str(state.state[0])+'_'+str(state.state[1])+'.pdf')
+          
+        
+        fig, axs = plt.subplots(len(actions))
+        for action in actions:
+            index = actions.index(action)
+            Qc = [round(Q[action], 2) for Q in mcts.Qc_history]
+            iters = [i for i in range(len(Qc))]
+            axs_ = axs[index].twinx()
+            axs[index].plot(iters, Qc, 'g-')
+            axs_.plot(iters, mcts.lambda_history, 'b-')
+            axs[index].set_ylabel('Qc', color='g')
+            axs_.set_ylabel('$\lambda$', color='b')
+            title = 'Qc and $\lambda$ for action '+str(action)
+            axs[index].set_title(title)
+        fig.tight_layout(pad=2.0)    
+        fig.savefig('Qc_'+str(state.state[0])+'_'+str(state.state[1])+'.pdf')
+        
+        
+        
+        
     
     
     

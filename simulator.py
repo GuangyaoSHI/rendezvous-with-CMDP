@@ -56,11 +56,11 @@ class Simulator:
     def actions(self, state):
         # if it is a terminal/absorbing state, robot can only stay in this state
         if self.is_goal(state):
-            print('in the goal state, no actions available')
+            #print('in the goal state, no actions available')
             return [state.state]
         
         if self.is_collision(state):
-            print('collision state, no actions available')
+            #print('collision state, no actions available')
             return [state.state]
         
         neighbors = [neighbor for neighbor in self.G.neighbors(state.state)]
@@ -78,21 +78,21 @@ class Simulator:
         done = False
         # check whether robot is already in goal or has collided with obstacles
         if state.state == self.goal:
-            print('already reach goal state, no transition needed')
+            #print('already reach goal state, no transition needed')
             reward = 0
             cost = 0
             done = True
             return (state, reward, cost, done)
         
         if self.is_collision(state):
-            print('already collide with obstacles, no transition needed')
+            #print('already collide with obstacles, no transition needed')
             reward = 0
             cost = 0
             done = True
             return (state, reward, cost, done)
         
         # Todo: a better motion model
-        if np.random.binomial(1, 0.99):
+        if np.random.binomial(1, 1):
             next_state.state = action
         else:
             if len(actions) == 1:
@@ -108,11 +108,11 @@ class Simulator:
                 print('take action {} in state {} but transit to {}'.format(action, state.state, next_state.state))
     
         if next_state.state == self.goal:
-            reward = 0
+            reward = -1
             cost = 0
         elif self.is_collision(next_state):
             reward = -1
-            cost = 2.7
+            cost = 1
         else:
             reward = -1
             cost = 0
@@ -206,4 +206,14 @@ if __name__ == "__main__":
     print('take action {} and transit to {}'.format(action, next_state.state))
     print('reward is {}'.format(reward))
     print('cost is {}'.format(cost))
+    
+    print('test shortest path')
+    source = (0, 0)
+    target = (6, 0)
+    print('source is {} target is {}'.format(source, target))
+    if nx.has_path(simulator.G, source=source, target=target):
+        print('path is {}'.format(nx.shortest_path(simulator.G, source=source, target=target)))  
+        print('path length is {}'.format(nx.shortest_path_length(simulator.G, source=source, target=target)))
+    else:
+        print('shortest path doesnot exist')
     
