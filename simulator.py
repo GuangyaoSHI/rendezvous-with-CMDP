@@ -92,11 +92,11 @@ class Simulator:
             return (state, reward, cost, done)
         
         # Todo: a better motion model
-        if np.random.binomial(1, 1):
+        if np.random.binomial(1, 0.8):
             next_state.state = action
         else:
             if len(actions) == 1:
-                print('state is {} and actions are {}'.format(state.state, actions))
+                #print('state is {} and actions are {}'.format(state.state, actions))
                 next_state.state = random.sample(actions, 1)[0]
             else:
             #print('avaible actions are {}'.format(actions))
@@ -105,14 +105,22 @@ class Simulator:
                 actions.remove(action)
                 assert len(actions) >= 1
                 next_state.state = random.sample(actions, 1)[0]
-                print('take action {} in state {} but transit to {}'.format(action, state.state, next_state.state))
+                #print('take action {} in state {} but transit to {}'.format(action, state.state, next_state.state))
     
         if next_state.state == self.goal:
             reward = -1
             cost = 0
         elif self.is_collision(next_state):
-            reward = -1
-            cost = 1
+            if nx.has_path(self.G, source=state.state, target=self.goal):
+                reward = -nx.shortest_path_length(self.G, source=state.state, target=self.goal)
+                #print('next state {} is collision state'.format(next_state.state))
+                #print('shortest path length is {} from {} to {}'.format(reward, state.state, self.goal))
+                cost = 1
+            else:
+                #Todo: if there is no path to the goal, how to define reward 
+                print('no path to the goal')
+                reward = -1
+                cost = 1
         else:
             reward = -1
             cost = 0

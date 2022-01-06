@@ -25,7 +25,7 @@ class MctsSim:
         # Prevents division by 0 in calculation of UCT
         self.EPSILON = 10e-6
         # UCB coefficient
-        self.uct_k = 16*np.sqrt(2)
+        self.uct_k = 20*np.sqrt(2)
         # maximum depth
         self.max_depth_roll_out = 100
         self.max_depth_simulate = 40
@@ -75,8 +75,9 @@ class MctsSim:
         # find action star, which is a list
         action_star = []
         Qplus_star = -sys.maxsize
+        #print('greedy policy for state {} of node {}'.format(state.state, node))
         for action in actions:
-            #print('node is {}'.format(node))
+            #print('candidate action {}'.format(action))
             Qr = self.tree.nodes[node]['Qr'][action]
             Qc = self.tree.nodes[node]['Qc'][action]
             Ns = self.tree.nodes[node]['N']
@@ -87,7 +88,7 @@ class MctsSim:
             #print('lambda is {}, k is {}'.format(self.lambda_, k))
             #print('ucb is {}'.format(k*self.ucb(Ns, Nsa)))
             Qplus =  Qr - self.lambda_*Qc + k * self.ucb(Ns, Nsa)
-            #print('Qplus is {}'.format(Qplus))
+            #print('Qplus is {} for action {}'.format(Qplus, action))
             if  Qplus >= Qplus_star:
                 # Todo: does this part matter?
                 # strictly follow author's implementation
@@ -199,6 +200,7 @@ class MctsSim:
         assert action in actions
         return action
     
+    # an alternative to greedy policy for root
     def root_policy(self):
         state = self.tree.nodes[0]['state']
         actions = self.simulator.actions(state)
@@ -338,7 +340,7 @@ def search(state, c_hat):
     lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 40000
+    iters = 20000
     # Todo: number of monte carlo simulations 
     # number of t   imes to do monte carlo simulation
     # in author's implementation this number is 1
@@ -361,7 +363,7 @@ def search(state, c_hat):
             at = 1
             #print('Qc {} is >= c_hat {}'.format(mcts.tree.nodes[root_node]['Qc'][action], c_hat))
       
-        lambda_ += 1/(1+i/40) * (mcts.tree.nodes[0]['Qc'][action] - c_hat)
+        lambda_ += 1/(1+i/70) * (mcts.tree.nodes[0]['Qc'][action] - c_hat)
         #lambda_ += 1/(1+i/40) * at
         #print('new lambda is {}'.format(lambda_))
         #lambda_ += 1/(1+i/200) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
@@ -387,7 +389,7 @@ def visulize_tree(tree):
     
     pos = graphviz_layout(G, prog="dot", root=0)
     nx.draw(G, pos)
-    node_labels = nx.get_node_attributes(tree,'node_label')
+    node_labels = nx.get_node_attributes(tree,'Na')
     nx.draw_networkx_labels(G, pos, labels = node_labels)
     #edge_labels = nx.get_edge_attributes(tree,'action')
     #nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels)
@@ -399,9 +401,8 @@ if __name__ == "__main__":
     # tree visualization
     # https://stackoverflow.com/questions/48380550/using-networkx-to-output-a-tree-structure
     # https://stackoverflow.com/questions/29586520/can-one-get-hierarchical-graphs-from-networkx-with-python-3/29597209#29597209
-    
     state = State()
-    state.state = (4, 4)
+    state.state = (2, 0)
     c_hat = 0.1
     for i in range(10):
         mcts = search(state, c_hat)

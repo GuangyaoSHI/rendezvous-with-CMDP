@@ -48,14 +48,14 @@ for x in range(0,7):
     for y in range(0,7):
         state = State(state=(x,y))
         mcts_policy = policies[(x, y)]
-        best_action = mcts_policy.GreedyPolicy(0,0)
+        best_action = mcts_policy.GreedyPolicy(0, 0)
         print('')
         print(state)
         print(best_action)
         ax.plot(x, y, 'r.')
         ax.arrow(x,y,0.2*(best_action[0]-x),0.2*(best_action[1]-y),width=0.05,head_width=0.5, head_length=0.15)
         Qr = mcts_policy.tree.nodes[0]['Qr'][best_action] 
-        Qc = mcts_policy.tree.nodes[0]['Qc'][best_action]/5
+        Qc = mcts_policy.tree.nodes[0]['Qc'][best_action]
         ax.text(x-0.3, y-0.2, str(round(Qr, 1)), size='x-small')
         ax.text(x-0.3, y+0.2, str(round(Qc, 2)), size='x-small')
         #plt.pause(0.1)
@@ -102,7 +102,7 @@ for i in range(0, 3):
 
 nx.draw(G, pos=pos, node_size=10, alpha=0.1)
 
-fig.savefig("policy_map.pdf")
+fig.savefig("policy_map_stochastic_80.pdf")
 plt.show()
 
 
