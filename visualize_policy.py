@@ -23,8 +23,8 @@ c_hat = 0.1
 #policies
 policies = {}
 
-for x in range(0, 7):
-    for y in range(0, 7):
+for x in range(0, 3):
+    for y in range(0, 3):
         state = State(state=(x,y))
         mcts_policy = search(state, c_hat)
         print('Qc: {}'.format(mcts_policy.tree.nodes[0]['Qc']))
@@ -42,10 +42,10 @@ with open('policy_map.obj', 'wb') as f:  # Python 3: open(..., 'wb')
 
 fig, ax = plt.subplots()
 
-plt.axis([-1, 7, -1, 7])
+plt.axis([-1, 3, -1, 3])
 plt.axis('equal')
-for x in range(0,7):
-    for y in range(0,7):
+for x in range(0,3):
+    for y in range(0,3):
         state = State(state=(x,y))
         mcts_policy = policies[(x, y)]
         best_action = mcts_policy.GreedyPolicy(0, 0)
@@ -60,15 +60,15 @@ for x in range(0,7):
         ax.text(x-0.3, y+0.2, str(round(Qc, 2)), size='x-small')
         #plt.pause(0.1)
 #fig.show()
-ax.set_xlim(-1, 7)
-ax.set_ylim(-1, 7)
+ax.set_xlim(-1, 3)
+ax.set_ylim(-1, 3)
 ax.set_aspect('equal', adjustable='box')
 ax.grid()
-ax.set_xticks(np.arange(-1, 8))
+ax.set_xticks(np.arange(-1, 4))
 
 #plot map
 G = nx.DiGraph()
-G_ = nx.grid_2d_graph(7, 7)
+G_ = nx.grid_2d_graph(3, 3)
 G.add_nodes_from(G_.nodes)
 pos = dict(zip(G.nodes, G.nodes))
 G.graph['pos'] = pos
@@ -100,9 +100,9 @@ for i in range(3, 7):
 for i in range(0, 3):
     G.add_edge((4, i), (3, i))
 
-nx.draw(G, pos=pos, node_size=10, alpha=0.1)
+nx.draw(G_, pos=pos, node_size=10, alpha=0.1)
 
-fig.savefig("policy_map_stochastic_80.pdf")
+fig.savefig("policy_map_3by3_sto.pdf")
 plt.show()
 
 

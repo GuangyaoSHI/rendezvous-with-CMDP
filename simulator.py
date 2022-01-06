@@ -31,16 +31,16 @@ class State:
         return str(self.state)
 
 class Simulator:
-    def __init__(self, start=(0, 0), goal=(6, 0)):
+    def __init__(self, start=(0, 0), goal=(2, 0)):
         self.start = start
         self.goal = goal
-        self.G = nx.DiGraph()
-        self.G_ = nx.grid_2d_graph(7, 7)
-        self.G.add_nodes_from(self.G_.nodes)
+        #self.G = nx.DiGraph()
+        self.G = nx.grid_2d_graph(3, 3)
+        #self.G.add_nodes_from(self.G_.nodes)
         pos = dict(zip(self.G.nodes, self.G.nodes))
         self.G.graph['pos'] = pos
         # obstacle list
-        self.obstacles = [(3,0), (3, 1), (3, 2)]
+        self.obstacles = [(1, 0)]
         colors = []
         for node in self.G.nodes:
             if node in self.obstacles:
@@ -48,8 +48,8 @@ class Simulator:
             else:
                 colors.append('#1f78b4')
         self.G.graph['node_color'] = colors
-        self.generate_map()
-        nx.draw(self.G, pos)
+        #self.generate_map()
+        nx.draw(self.G, pos, with_labels=True)
         plt.show()
         
     # return available actions in state, represented as a list
@@ -92,7 +92,7 @@ class Simulator:
             return (state, reward, cost, done)
         
         # Todo: a better motion model
-        if np.random.binomial(1, 0.8):
+        if np.random.binomial(1, 0.98):
             next_state.state = action
         else:
             if len(actions) == 1:
@@ -112,9 +112,10 @@ class Simulator:
             cost = 0
         elif self.is_collision(next_state):
             if nx.has_path(self.G, source=state.state, target=self.goal):
-                reward = -nx.shortest_path_length(self.G, source=state.state, target=self.goal)
+                #reward = -nx.shortest_path_length(self.G, source=state.state, target=self.goal)
                 #print('next state {} is collision state'.format(next_state.state))
                 #print('shortest path length is {} from {} to {}'.format(reward, state.state, self.goal))
+                reward = -1
                 cost = 1
             else:
                 #Todo: if there is no path to the goal, how to define reward 
@@ -190,7 +191,7 @@ if __name__ == "__main__":
     
     print('test collision state')
     root = State()
-    root.state = (3, 0)
+    root.state = (1, 0)
     simulator = Simulator()
     print('state is {}'.format(root.state))
     actions = simulator.actions(root)
@@ -204,7 +205,7 @@ if __name__ == "__main__":
     
     print('test goal state')
     root = State()
-    root.state = (6, 0)
+    root.state = (2, 0)
     simulator = Simulator()
     print('state is {}'.format(root.state))
     actions = simulator.actions(root)
@@ -217,7 +218,7 @@ if __name__ == "__main__":
     
     print('test shortest path')
     source = (0, 0)
-    target = (6, 0)
+    target = (2, 0)
     print('source is {} target is {}'.format(source, target))
     if nx.has_path(simulator.G, source=source, target=target):
         print('path is {}'.format(nx.shortest_path(simulator.G, source=source, target=target)))  
