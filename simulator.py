@@ -40,7 +40,7 @@ class Simulator:
         pos = dict(zip(self.G.nodes, self.G.nodes))
         self.G.graph['pos'] = pos
         # obstacle list
-        self.obstacles = [(3,0), (3, 1), (3, 2)]
+        self.obstacles = [(3,0)]
         colors = []
         for node in self.G.nodes:
             if node in self.obstacles:
@@ -49,7 +49,7 @@ class Simulator:
                 colors.append('#1f78b4')
         self.G.graph['node_color'] = colors
         self.generate_map()
-        nx.draw(self.G, pos)
+        nx.draw(self.G, pos=pos, node_color=colors)
         plt.show()
         
     # return available actions in state, represented as a list
@@ -92,7 +92,7 @@ class Simulator:
             return (state, reward, cost, done)
         
         # Todo: a better motion model
-        if np.random.binomial(1, 0.8):
+        if np.random.binomial(1, 1):
             next_state.state = action
         else:
             if len(actions) == 1:
@@ -112,7 +112,8 @@ class Simulator:
             cost = 0
         elif self.is_collision(next_state):
             if nx.has_path(self.G, source=state.state, target=self.goal):
-                reward = -nx.shortest_path_length(self.G, source=state.state, target=self.goal)
+                reward = -1
+                #reward = -nx.shortest_path_length(self.G, source=state.state, target=self.goal)
                 #print('next state {} is collision state'.format(next_state.state))
                 #print('shortest path length is {} from {} to {}'.format(reward, state.state, self.goal))
                 cost = 1
@@ -163,13 +164,20 @@ class Simulator:
         
         for i in range(3, 6):
             self.G.add_edge((3, i), (3, i+1))
-        self.G.add_edge((3, 3), (3, 2))
+        
+        self.G.add_edge((3, 2), (3, 3))
         
         for i in range(3, 7):
             self.G.add_edge((3, i), (4, i))
         
-        for i in range(0, 3):
-            self.G.add_edge((4, i), (3, i))
+        for i in range(1, 3):
+            self.G.add_edge((3, i), (4, i))
+        
+        self.G.add_edge((4, 0), (3, 0))
+        
+        self.G.add_edge((3, 1), (3, 0))
+        
+        self.G.add_edge((3, 1), (3, 2))
         
         
                       

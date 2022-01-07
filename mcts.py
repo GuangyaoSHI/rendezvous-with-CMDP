@@ -363,7 +363,7 @@ def search(state, c_hat):
             at = 1
             #print('Qc {} is >= c_hat {}'.format(mcts.tree.nodes[root_node]['Qc'][action], c_hat))
       
-        lambda_ += 1/(1+i/70) * (mcts.tree.nodes[0]['Qc'][action] - c_hat)
+        lambda_ += 1/(1+i/15) * (mcts.tree.nodes[0]['Qc'][action] - c_hat)
         #lambda_ += 1/(1+i/40) * at
         #print('new lambda is {}'.format(lambda_))
         #lambda_ += 1/(1+i/200) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
