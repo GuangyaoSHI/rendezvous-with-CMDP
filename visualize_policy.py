@@ -23,8 +23,10 @@ c_hat = 0.1
 #policies
 policies = {}
 
-for x in range(0, 3):
-    for y in range(0, 3):
+#grid world size
+size = 5
+for x in range(0, size):
+    for y in range(0, size):
         state = State(state=(x,y))
         mcts_policy = search(state, c_hat)
         print('Qc: {}'.format(mcts_policy.tree.nodes[0]['Qc']))
@@ -42,10 +44,10 @@ with open('policy_map.obj', 'wb') as f:  # Python 3: open(..., 'wb')
 
 fig, ax = plt.subplots()
 
-plt.axis([-1, 3, -1, 3])
+plt.axis([-1, size, -1, size])
 plt.axis('equal')
-for x in range(0,3):
-    for y in range(0,3):
+for x in range(0, size):
+    for y in range(0, size):
         state = State(state=(x,y))
         mcts_policy = policies[(x, y)]
         best_action = mcts_policy.GreedyPolicy(0, 0)
@@ -60,49 +62,23 @@ for x in range(0,3):
         ax.text(x-0.3, y+0.2, str(round(Qc, 2)), size='x-small')
         #plt.pause(0.1)
 #fig.show()
-ax.set_xlim(-1, 3)
-ax.set_ylim(-1, 3)
+ax.set_xlim(-1, size)
+ax.set_ylim(-1, size)
 ax.set_aspect('equal', adjustable='box')
 ax.grid()
-ax.set_xticks(np.arange(-1, 4))
+ax.set_xticks(np.arange(-1, size+1))
 
 #plot map
 G = nx.DiGraph()
-G_ = nx.grid_2d_graph(3, 3)
+G_ = nx.grid_2d_graph(size, size)
 G.add_nodes_from(G_.nodes)
 pos = dict(zip(G.nodes, G.nodes))
 G.graph['pos'] = pos
 
 
-for i in range(0, 3):
-    # add vertical edges to the graph G
-    for j in range(0, 6):
-        G.add_edge((i, j), (i, j+1))
-    # add horizontal edges
-    for j in range(0, 7):
-        G.add_edge((i, j), (i+1, j))
-
-for i in range(4, 7):
-    for j in range(0, 6):
-        G.add_edge((i, j+1), (i, j))
-    
-    for j in range(0, 7):
-        if i<6:
-            G.add_edge((i, j), (i+1, j))
-
-for i in range(3, 6):
-    G.add_edge((3, i), (3, i+1))
-G.add_edge((3, 3), (3, 2))
-
-for i in range(3, 7):
-    G.add_edge((3, i), (4, i))
-
-for i in range(0, 3):
-    G.add_edge((4, i), (3, i))
-
 nx.draw(G_, pos=pos, node_size=10, alpha=0.1)
 
-fig.savefig("policy_map_3by3_sto.pdf")
+fig.savefig("policy_map_"+str(size)+"by"+str(size)+"_sto.pdf")
 plt.show()
 
 

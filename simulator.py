@@ -31,16 +31,16 @@ class State:
         return str(self.state)
 
 class Simulator:
-    def __init__(self, start=(0, 0), goal=(2, 0)):
+    def __init__(self, start=(0, 0), goal=(4, 0)):
         self.start = start
         self.goal = goal
         #self.G = nx.DiGraph()
-        self.G = nx.grid_2d_graph(3, 3)
+        self.G = nx.grid_2d_graph(5, 5)
         #self.G.add_nodes_from(self.G_.nodes)
         pos = dict(zip(self.G.nodes, self.G.nodes))
         self.G.graph['pos'] = pos
         # obstacle list
-        self.obstacles = [(1, 0)]
+        self.obstacles = [(2, 0)]
         colors = []
         for node in self.G.nodes:
             if node in self.obstacles:
@@ -92,7 +92,7 @@ class Simulator:
             return (state, reward, cost, done)
         
         # Todo: a better motion model
-        if np.random.binomial(1, 0.98):
+        if np.random.binomial(1, 0.95):
             next_state.state = action
         else:
             if len(actions) == 1:
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     
     print('test goal state')
     root = State()
-    root.state = (2, 0)
+    root.state = (3, 0)
     simulator = Simulator()
     print('state is {}'.format(root.state))
     actions = simulator.actions(root)

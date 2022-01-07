@@ -340,7 +340,7 @@ def search(state, c_hat):
     lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 5000
+    iters = 20000
     # Todo: number of monte carlo simulations 
     # number of t   imes to do monte carlo simulation
     # in author's implementation this number is 1
@@ -363,7 +363,7 @@ def search(state, c_hat):
             at = 1
             #print('Qc {} is >= c_hat {}'.format(mcts.tree.nodes[root_node]['Qc'][action], c_hat))
       
-        lambda_ += 1/(1+i/10) * (mcts.tree.nodes[0]['Qc'][action] - c_hat)
+        lambda_ += 1/(1+i/20) * (mcts.tree.nodes[0]['Qc'][action] - c_hat)
         #lambda_ += 1/(1+i/40) * at
         #print('new lambda is {}'.format(lambda_))
         #lambda_ += 1/(1+i/200) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))
@@ -460,9 +460,9 @@ if __name__ == "__main__":
     # https://stackoverflow.com/questions/48380550/using-networkx-to-output-a-tree-structure
     # https://stackoverflow.com/questions/29586520/can-one-get-hierarchical-graphs-from-networkx-with-python-3/29597209#29597209
     state = State()
-    state.state = (0, 1)
+    state.state = (0, 0)
     c_hat = 0.1
-    for i in range(1):
+    for i in range(10):
         mcts = search(state, c_hat)
         visulize_tree(mcts.tree)
         visulize_tree_Qr(mcts.tree, mcts.lambda_)
