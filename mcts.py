@@ -395,6 +395,59 @@ def visulize_tree(tree):
     #nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels)
     plt.show()
    
+def visulize_tree_Qr(tree, lambda_):
+    # https://stackoverflow.com/questions/20381460/networkx-how-to-show-node-and-edge-attributes-in-a-graph-drawing
+    G = nx.DiGraph()
+    for edge in tree.edges:
+        # G.add_edge(edge[0], edge[1], label=tree.edges[edge]['action'])
+        G.add_edge(edge[0], edge[1])
+    # for node in G.nodes:
+    #     G.nodes[node]['label'] = tree.nodes[node]['state'].state
+    
+    pos = graphviz_layout(G, prog="dot", root=0)
+    title = 'edge represents Qr(s,a), lambda is {}'.format(round(lambda_, 2))
+    plt.title(title)
+    nx.draw(G, pos, node_size=10, alpha=0.8)
+    #node_labels = dict(zip(mcts.tree.nodes, mcts.tree.nodes))
+    node_labels = nx.get_node_attributes(tree,'node_label')
+    nx.draw_networkx_labels(G, pos, labels = node_labels, font_size=5)
+    edge_labels = nx.get_edge_attributes(tree,'action')
+    for node in tree.nodes:
+        for parent_node in tree.predecessors(node):
+            action = tree.edges[parent_node, node]['action']
+            edge_labels[(parent_node, node)] = round(tree.nodes[parent_node]['Qr'][action], 1)
+    
+    nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels, font_size=4)
+    
+    plt.savefig('tree_Qr.pdf')
+    plt.show()
+
+def visulize_tree_Qc(tree, lambda_):
+    # https://stackoverflow.com/questions/20381460/networkx-how-to-show-node-and-edge-attributes-in-a-graph-drawing
+    G = nx.DiGraph()
+    for edge in tree.edges:
+        # G.add_edge(edge[0], edge[1], label=tree.edges[edge]['action'])
+        G.add_edge(edge[0], edge[1])
+    # for node in G.nodes:
+    #     G.nodes[node]['label'] = tree.nodes[node]['state'].state
+    
+    pos = graphviz_layout(G, prog="dot", root=0)
+    title = 'edge represents Qc(s,a), lambda is {}'.format(round(lambda_, 2))
+    plt.title(title)
+    nx.draw(G, pos, node_size=10, alpha=0.8)
+    #node_labels = dict(zip(mcts.tree.nodes, mcts.tree.nodes))
+    node_labels = nx.get_node_attributes(tree,'node_label')
+    nx.draw_networkx_labels(G, pos, labels = node_labels, font_size=5)
+    edge_labels = nx.get_edge_attributes(tree,'action')
+    for node in tree.nodes:
+        for parent_node in tree.predecessors(node):
+            action = tree.edges[parent_node, node]['action']
+            edge_labels[(parent_node, node)] = round(tree.nodes[parent_node]['Qc'][action], 2)
+    
+    nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels, font_size=4)
+    
+    plt.savefig('tree_Qc.pdf')
+    plt.show()       
         
         
 if __name__ == "__main__":
@@ -404,9 +457,11 @@ if __name__ == "__main__":
     state = State()
     state.state = (2, 0)
     c_hat = 0.1
-    for i in range(10):
+    for i in range(1):
         mcts = search(state, c_hat)
-        #visulize_tree(mcts.tree)
+        visulize_tree(mcts.tree)
+        visulize_tree_Qr(mcts.tree, mcts.lambda_)
+        visulize_tree_Qc(mcts.tree, mcts.lambda_)
         action = mcts.GreedyPolicy(0, 0)
         #print('mcts nodes: {}'.format(mcts.tree.nodes))
         print('best action is {}'.format(action))
