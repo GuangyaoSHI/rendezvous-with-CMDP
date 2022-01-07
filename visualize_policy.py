@@ -100,9 +100,18 @@ for i in range(3, 7):
 for i in range(0, 3):
     G.add_edge((4, i), (3, i))
 
-nx.draw(G, pos=pos, node_size=10, alpha=0.1)
 
-fig.savefig("policy_map_stochastic_80.pdf")
+colors = []
+obstacles = [(3,0)]
+for node in G.nodes:
+    if node in obstacles:
+        colors.append('r')
+    else:
+        colors.append('#1f78b4')
+
+nx.draw(G, pos=pos, node_size=10, alpha=0.1, node_color=colors)
+
+fig.savefig("policy_map_deter.pdf")
 plt.show()
 
 

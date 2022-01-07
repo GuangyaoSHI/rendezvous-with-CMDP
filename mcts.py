@@ -139,7 +139,6 @@ class MctsSim:
                     maxCost = Qc
                     maxCostAction = action
         
-  
         # compute policy as a probability distrbution over minCostAction
         # and maxCostAction
         assert minCost <= maxCost
@@ -388,11 +387,17 @@ def visulize_tree(tree):
     #     G.nodes[node]['label'] = tree.nodes[node]['state'].state
     
     pos = graphviz_layout(G, prog="dot", root=0)
-    nx.draw(G, pos)
-    node_labels = nx.get_node_attributes(tree,'Na')
-    nx.draw_networkx_labels(G, pos, labels = node_labels)
-    #edge_labels = nx.get_edge_attributes(tree,'action')
-    #nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels)
+    nx.draw(G, pos, node_size=10, alpha=0.8)
+    node_labels = nx.get_node_attributes(tree,'node_label')
+    nx.draw_networkx_labels(G, pos, labels = node_labels, font_size=5)
+    edge_labels = nx.get_edge_attributes(tree,'action')
+    for node in tree.nodes:
+        for parent_node in tree.predecessors(node):
+            action = tree.edges[parent_node, node]['action']
+            edge_labels[(parent_node, node)] = tree.nodes[parent_node]['Na'][action]
+    
+    nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels, font_size=4)
+    plt.savefig('tree.pdf')
     plt.show()
    
 def visulize_tree_Qr(tree, lambda_):
@@ -417,7 +422,7 @@ def visulize_tree_Qr(tree, lambda_):
             action = tree.edges[parent_node, node]['action']
             edge_labels[(parent_node, node)] = round(tree.nodes[parent_node]['Qr'][action], 1)
     
-    nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels, font_size=4)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels, font_size=3)
     
     plt.savefig('tree_Qr.pdf')
     plt.show()
@@ -444,7 +449,7 @@ def visulize_tree_Qc(tree, lambda_):
             action = tree.edges[parent_node, node]['action']
             edge_labels[(parent_node, node)] = round(tree.nodes[parent_node]['Qc'][action], 2)
     
-    nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels, font_size=4)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels = edge_labels, font_size=3)
     
     plt.savefig('tree_Qc.pdf')
     plt.show()       
@@ -455,13 +460,13 @@ if __name__ == "__main__":
     # https://stackoverflow.com/questions/48380550/using-networkx-to-output-a-tree-structure
     # https://stackoverflow.com/questions/29586520/can-one-get-hierarchical-graphs-from-networkx-with-python-3/29597209#29597209
     state = State()
-    state.state = (2, 0)
+    state.state = (0, 4)
     c_hat = 0.1
-    for i in range(1):
+    for i in range(4):
         mcts = search(state, c_hat)
-        visulize_tree(mcts.tree)
-        visulize_tree_Qr(mcts.tree, mcts.lambda_)
-        visulize_tree_Qc(mcts.tree, mcts.lambda_)
+        #visulize_tree(mcts.tree)
+        #visulize_tree_Qr(mcts.tree, mcts.lambda_)
+        #visulize_tree_Qc(mcts.tree, mcts.lambda_)
         action = mcts.GreedyPolicy(0, 0)
         #print('mcts nodes: {}'.format(mcts.tree.nodes))
         print('best action is {}'.format(action))
@@ -485,9 +490,15 @@ if __name__ == "__main__":
             index = actions.index(action)
             Qr = [Q[action] for Q in mcts.Qr_history]
             iters = [i for i in range(len(Qr))]
-            axs[index].plot(iters, Qr)
+            if len(actions)==1:
+                axs.plot(iters, Qr)
+            else:
+                axs[index].plot(iters, Qr)
             title = 'Qr for action ' + str(action)
-            axs[index].set_title(title)
+            if len(actions)==1:
+                axs.set_title(title)
+            else:
+                axs[index].set_title(title)
         fig.tight_layout(pad=1.0)    
         fig.savefig('Qr_'+str(state.state[0])+'_'+str(state.state[1])+'.pdf')
           
@@ -497,13 +508,23 @@ if __name__ == "__main__":
             index = actions.index(action)
             Qc = [round(Q[action], 2) for Q in mcts.Qc_history]
             iters = [i for i in range(len(Qc))]
-            axs_ = axs[index].twinx()
-            axs[index].plot(iters, Qc, 'g-')
-            axs_.plot(iters, mcts.lambda_history, 'b-')
-            axs[index].set_ylabel('Qc', color='g')
-            axs_.set_ylabel('$\lambda$', color='b')
-            title = 'Qc and $\lambda$ for action '+str(action)
-            axs[index].set_title(title)
+            if len(actions)==1:
+                axs_ = axs.twinx()
+                axs.plot(iters, Qc, 'g-')
+                axs_.plot(iters, mcts.lambda_history, 'b-')
+                axs.set_ylabel('Qc', color='g')
+                axs_.set_ylabel('$\lambda$', color='b')
+                title = 'Qc and $\lambda$ for action '+str(action)
+                axs.set_title(title)
+            else:
+                axs_ = axs[index].twinx()
+                axs[index].plot(iters, Qc, 'g-')
+                axs_.plot(iters, mcts.lambda_history, 'b-')
+                axs[index].set_ylabel('Qc', color='g')
+                axs_.set_ylabel('$\lambda$', color='b')
+                title = 'Qc and $\lambda$ for action '+str(action)
+                axs[index].set_title(title)
+              
         fig.tight_layout(pad=2.0)    
         fig.savefig('Qc_'+str(state.state[0])+'_'+str(state.state[1])+'.pdf')
         
