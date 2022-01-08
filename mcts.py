@@ -340,11 +340,11 @@ def search(state, c_hat):
     lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 20000
+    iters = 5000
     # Todo: number of monte carlo simulations 
     # number of t   imes to do monte carlo simulation
     # in author's implementation this number is 1
-    Nmc = 1
+    Nmc = 10  
     mcts = MctsSim(lambda_, c_hat, state)
     root_node = 0
     depth = 0
@@ -462,7 +462,7 @@ if __name__ == "__main__":
     state = State()
     state.state = (0, 0)
     c_hat = 0.1
-    for i in range(10):
+    for i in range(1):
         mcts = search(state, c_hat)
         visulize_tree(mcts.tree)
         visulize_tree_Qr(mcts.tree, mcts.lambda_)
@@ -490,9 +490,15 @@ if __name__ == "__main__":
             index = actions.index(action)
             Qr = [Q[action] for Q in mcts.Qr_history]
             iters = [i for i in range(len(Qr))]
-            axs[index].plot(iters, Qr)
+            if len(actions)==1:
+                axs.plot(iters, Qr)
+            else:
+                axs[index].plot(iters, Qr)
             title = 'Qr for action ' + str(action)
-            axs[index].set_title(title)
+            if len(actions)==1:
+                axs.set_title(title)
+            else:
+                axs[index].set_title(title)
         fig.tight_layout(pad=1.0)    
         fig.savefig('Qr_'+str(state.state[0])+'_'+str(state.state[1])+'.pdf')
           
@@ -502,13 +508,25 @@ if __name__ == "__main__":
             index = actions.index(action)
             Qc = [round(Q[action], 2) for Q in mcts.Qc_history]
             iters = [i for i in range(len(Qc))]
-            axs_ = axs[index].twinx()
-            axs[index].plot(iters, Qc, 'g-')
-            axs_.plot(iters, mcts.lambda_history, 'b-')
-            axs[index].set_ylabel('Qc', color='g')
-            axs_.set_ylabel('$\lambda$', color='b')
-            title = 'Qc and $\lambda$ for action '+str(action)
-            axs[index].set_title(title)
+            if len(actions)==1:
+                axs_ = axs.twinx()
+                axs.plot(iters, Qc, 'g-')
+                iters = [i for i in range(len(mcts.lambda_history))]
+                axs_.plot(iters, mcts.lambda_history, 'b-')
+                axs.set_ylabel('Qc', color='g')
+                axs_.set_ylabel('λ', color='b')
+                title = 'Qc and λ for action '+str(action)
+                axs.set_title(title)
+            else:
+                axs_ = axs[index].twinx()
+                axs[index].plot(iters, Qc, 'g-')
+                iters = [i for i in range(len(mcts.lambda_history))]
+                axs_.plot(iters, mcts.lambda_history, 'b-')
+                axs[index].set_ylabel('Qc', color='g')
+                axs_.set_ylabel('λ', color='b')
+                title = 'Qc and λ for action '+str(action)
+                axs[index].set_title(title)
+              
         fig.tight_layout(pad=2.0)    
         fig.savefig('Qc_'+str(state.state[0])+'_'+str(state.state[1])+'.pdf')
         

@@ -76,9 +76,17 @@ pos = dict(zip(G.nodes, G.nodes))
 G.graph['pos'] = pos
 
 
-nx.draw(G_, pos=pos, node_size=10, alpha=0.1)
+colors = []
+obstacles = [((size-1)/2,0)]
+for node in G.nodes:
+    if node in obstacles:
+        colors.append('r')
+    else:
+        colors.append('#1f78b4')
 
-fig.savefig("policy_map_"+str(size)+"by"+str(size)+"_sto.pdf")
+nx.draw(G, pos=pos, node_size=10, alpha=0.1, node_color=colors)
+
+fig.savefig("policy_map_"+str(size)+"by"+str(size)+"_deter2.pdf")
 plt.show()
 
 

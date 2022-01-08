@@ -49,7 +49,7 @@ class Simulator:
                 colors.append('#1f78b4')
         self.G.graph['node_color'] = colors
         #self.generate_map()
-        nx.draw(self.G, pos, with_labels=True)
+        nx.draw(self.G, pos, with_labels=True, node_color=colors)
         plt.show()
         
     # return available actions in state, represented as a list
@@ -92,7 +92,7 @@ class Simulator:
             return (state, reward, cost, done)
         
         # Todo: a better motion model
-        if np.random.binomial(1, 0.95):
+        if np.random.binomial(1, 1):
             next_state.state = action
         else:
             if len(actions) == 1:
