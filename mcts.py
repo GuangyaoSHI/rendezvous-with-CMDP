@@ -344,13 +344,14 @@ def search(state, c_hat):
     # Todo: number of monte carlo simulations 
     # number of t   imes to do monte carlo simulation
     # in author's implementation this number is 1
-    Nmc = 10  
-    mcts = MctsSim(lambda_, c_hat, state)
+    Nmc = 1  
+    
     root_node = 0
     depth = 0
     for i in range(iters):
+        mcts = MctsSim(lambda_, c_hat, state)
         # grow monte carlo tree
-        for j in range(Nmc):
+        for j in range(i+1):
             # the second root_node is parent_node
             mcts.simulate(root_node, depth)
         action = mcts.GreedyPolicy(root_node, 0)
@@ -363,7 +364,7 @@ def search(state, c_hat):
             at = 1
             #print('Qc {} is >= c_hat {}'.format(mcts.tree.nodes[root_node]['Qc'][action], c_hat))
       
-        lambda_ += 1/(1+i/20) * (mcts.tree.nodes[0]['Qc'][action] - c_hat)
+        lambda_ += 1/(1+i/10) * (mcts.tree.nodes[0]['Qc'][action] - c_hat)
         #lambda_ += 1/(1+i/40) * at
         #print('new lambda is {}'.format(lambda_))
         #lambda_ += 1/(1+i/200) * at * abs((mcts.tree.nodes[0]['Qc'][action] - c_hat))

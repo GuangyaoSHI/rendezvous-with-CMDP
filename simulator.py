@@ -49,7 +49,7 @@ class Simulator:
                 colors.append('#1f78b4')
         self.G.graph['node_color'] = colors
         #self.generate_map()
-        nx.draw(self.G, pos, with_labels=True, node_color=colors)
+        #nx.draw(self.G, pos, with_labels=True, node_color=colors)
         plt.show()
         
     # return available actions in state, represented as a list
