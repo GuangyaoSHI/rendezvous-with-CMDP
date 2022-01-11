@@ -340,7 +340,7 @@ def search(state, c_hat):
     lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 500
+    iters = 1000
     # Todo: number of monte carlo simulations 
     # number of t   imes to do monte carlo simulation
     # in author's implementation this number is 1
