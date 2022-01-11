@@ -56,6 +56,7 @@ class Simulator:
         #return [state.state] + neighbors
         # robot has to move to a new position
         return neighbors
+    
     # return (next_state, reward, cost)
     def transition(self, state, action):
         #print('transit from state {} by taking action {}'.format(state.state, action))
