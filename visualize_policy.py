@@ -33,8 +33,8 @@ for x in range(0, size):
         policies[(x, y)] = mcts_policy
 
 # Saving the objects:
-with open('policy_map.obj', 'wb') as f:  # Python 3: open(..., 'wb')
-    pickle.dump(policies, f)
+# with open('policy_map.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+#     pickle.dump(policies, f)
 
 # Getting back the objects:
 # with open('policy_map.obj', 'rb') as f:  # Python 3: open(..., 'rb')
