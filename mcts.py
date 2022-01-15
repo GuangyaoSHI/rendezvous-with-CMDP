@@ -335,21 +335,20 @@ class MctsSim:
             
 def search(state, c_hat):
     # initialize lambda
-    lambda_ = 1
+    lambda_ = 100
     # Todo: how to specify a range for lambda [0, lambda_max]
     lambda_max = 100
     # Todo: how to specify the number of iterations
     # number of times to update lambda
-    iters = 1000
+    iters = 10000
     # Todo: number of monte carlo simulations 
     # number of t   imes to do monte carlo simulation
     # in author's implementation this number is 1
-    Nmc = 10000  
-    
+    Nmc = 1 
+    mcts = MctsSim(lambda_, c_hat, state)
     root_node = 0
     depth = 0
     for i in range(iters):
-        mcts = MctsSim(lambda_, c_hat, state)
         # grow monte carlo tree
         for j in range(i+1):
             # the second root_node is parent_node
