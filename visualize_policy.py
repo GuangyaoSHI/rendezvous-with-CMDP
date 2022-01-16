@@ -86,7 +86,7 @@ for node in G.nodes:
 
 nx.draw(G, pos=pos, node_size=10, alpha=0.1, node_color=colors)
 
-fig.savefig("policy_map_"+str(size)+"by"+str(size)+"_deter2.pdf")
+fig.savefig("policy_map_"+str(size)+"by"+str(size)+"_deter3.pdf")
 plt.show()
 
 
