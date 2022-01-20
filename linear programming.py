@@ -89,7 +89,7 @@ def transition_prob(s_a_s):
 
     
     # transition model
-    stochasticity = 0.01
+    stochasticity = 0.1
     if next_state == action:
         prob = 1 - stochasticity * (len(neighbors) - 1)
         print('probability of {} is {}'.format(s_a_s, prob))
@@ -162,7 +162,7 @@ def cost(s_a):
     
     
         
-threshold = 0.1
+threshold = 0.225
 
 model = gp.Model('LP_CMDP')
 
