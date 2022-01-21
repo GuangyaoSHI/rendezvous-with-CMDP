@@ -23,6 +23,7 @@ class rendezvous():
         # a sequence of nodes in road network, represented as a directed graph
         # rendezvous action may change the task, some nodes may be inserted into tha task 
         self.UGV_task = UGV_task 
+        self.UGV_goal = UGV_task.graph['UGV_goal']
         
         # road network can be viewed as a fine discretization of 2D continuous road network
         self.road_network = road_network 
@@ -38,6 +39,10 @@ class rendezvous():
         # time for changing battery
         # Todo: choose a proper value 
         self.chargin_time = 0
+        
+        # total battery
+        # Todo:choose a proper value 
+        self.battery = 10000
         # power consumption
         # heading = wind heading angle m/s, randomly sampled unless provided by user
         self.wind_heading = np.random.rand()*2*np.pi
@@ -70,56 +75,68 @@ class rendezvous():
         UGV_state_next = []
         battery_state_next = []
         
-        if action == 'v_be':
+        if action in ['v_be', 'v_br']:
             # UAV choose to go to next task node with best endurance velocity
             descendants = list(self.UGV_task.neighbors[UAV_state])
             assert len(descendants) == 1
             UAV_state_next = descendants[0]
             # compute next state for UGV
-            duration = self.UAV_task.edges[UAV_state, UAV_state_next]['dis']/self.velocity_uav['v_be']
-            UGV_state_next = self.UGV_transit(UGV_state, UGV_task_state, duration)
-            power_consumed = self.power_consumption(self.velocity_uav['v_be'], duration)
-            battery_state_next = battery_state - power_consumed
-        
-        if action == 'v_br':
-            # UAV choose to go to next task node with best endurance velocity
-            descendants = list(self.UGV_task.neighbors[UAV_state])
-            assert len(descendants) == 1
-            UAV_state_next = descendants[0]
-            # compute next state for UGV
-            duration = self.UAV_task.edges[UAV_state, UAV_state_next]['dis']/self.velocity_uav['v_br']
-            UGV_state_next = self.UGV_transit(UGV_state, UGV_task_state, duration)
-            power_consumed = self.power_consumption(self.velocity_uav['v_br'], duration)
+            duration = self.UAV_task.edges[UAV_state, UAV_state_next]['dis']/self.velocity_uav[action]
+            UGV_state_next = self.UGV_transit(UGV_state, (UGV_task_state[2], UGV_task_state[3]), duration)
+            power_consumed = self.power_consumption(self.velocity_uav[action], duration)
             battery_state_next = battery_state - power_consumed
             if battery_state_next < 0:
-                UAV_state_next = ('f', 'f')
-                UGV_state_next = ('f', 'f')
-                battery_state_next = ('empty')
-                return UAV_state_next, UGV_state_next, battery_state_next
+               UAV_state_next = ('f', 'f')
+               UGV_state_next = ('f', 'f')
+               battery_state_next = ('empty')
+               return UAV_state_next, UGV_state_next, battery_state_next
+        
             
-        if action == 'v_be_be':
+        if action in ['v_be_be', 'v_be_br', 'v_br_be', 'v_br_br']:
+            v1 = action[0:4]
+            v2 = 'v'+action[4:]
             # UAV choose to go to next task node with best endurance velocity
             descendants = list(self.UGV_task.neighbors[UAV_state])
             assert len(descendants) == 1
             UAV_state_next = descendants[0]
             # compute rendezvous point and time
             rendezvous_node, t1, t2 = self.rendezvous_point(UAV_state, UAV_state_next, 
-                                               UGV_state, UGV_task_state, self.velocity_uav['v_be'], self.velocity_uav['v_be'])
+                                               UGV_state, UGV_task_state, self.velocity_uav[v1], self.velocity_uav[v2])
             
             # power consumed for rendezvous 
             power_consumed = self.power_consumption(self.velocity_uav['v_be'], t1)
             battery_state_next = battery_state - power_consumed
+            # UAV cannot rendezvous
+            if battery_state_next < 0:
+                UAV_state_next = ('f', 'f')
+                UGV_state_next = ('f', 'f')
+                battery_state_next = ('empty')
+                return UAV_state_next, UGV_state_next, battery_state_next
             
+            # UAV cannot go back to next task node
+            power_consumed = self.power_consumption(self.velocity_uav['v_be'], t2)
+            battery_state_next = self.battery - power_consumed
+            if battery_state_next < 0:
+                UAV_state_next = ('f', 'f')
+                UGV_state_next = ('f', 'f')
+                battery_state_next = ('empty')
+                return UAV_state_next, UGV_state_next, battery_state_next
             
-            
+            #Todo: in the rendezvous function the task of UGV will change
+            #Todo: compute the state of UGV after t2 and return
+            UGV_next_task = self.UGV_task.neighbors(rendezvous_node)[0]
+            UGV_state_next = self.UGV_transit(rendezvous_node, UGV_next_task, duration)
+        
+        
+        return UAV_state_next, UGV_state_next, battery_state_next
             
             
         
     
-    def UGV_transit(self, UGV_state, UGV_task_state, duration):
+    def UGV_transit(self, UGV_state, UGV_next_task, duration):
         #last_task_state = (UGV_task_state[0], UGV_task_state[1])
         # Todo: check UGV_state is indeed between two task nodes
-        next_task_state = (UGV_task_state[2], UGV_task_state[3])
+        next_task_state = UGV_next_task
         
         # UGV will move duration * velocity distance along the task path
         total_dis = self.velocity_ugv * duration
@@ -190,7 +207,17 @@ class rendezvous():
                 rendezvous_time1 = time1
                 rendezvous_time2 = time2
         
-        
+        # update UGV task 
+        # Todo: 
+        rendezvous_node2task = nx.shortest_path(self.road_network, source=rendezvous_node, target=UGV_task_next)
+        task2goal = nx.shortest_path(self.UGV_task, source=UGV_task_next, target=self.UGV_goal)
+        new_task = nx.DiGraph()
+        new_task.add_node(rendezvous_node)
+        for i in range(len(rendezvous_node2task)-1):
+            new_task.add_edge(rendezvous_node2task[i], rendezvous_node2task[i+1])
+        for i in range(len(task2goal)-1):
+            new_task.add_edge(task2goal[i], task2goal[i+1])    
+        self.UGV_task = copy.deepcopy(new_task)
         return rendezvous_node, rendezvous_time1, rendezvous_time2
     
     def get_states(self, state):
@@ -246,8 +273,12 @@ def generate_UAV_task():
 def generate_UGV_task():
     G = nx.DiGraph()
     # a simple straight line network
+    goal = []
     for i in range(1, 30*60*4):
-        G.add_edge((0, (i-1)*5), (0, i*5))  
+        dis = np.linalg.norm(np.array((0, (i-1)*5))-np.array((0, i*5)))
+        G.add_edge((0, (i-1)*5), (0, i*5), dis=dis)
+        goal = (0, i*5)
+    G.graph['UGV_goal'] = goal
     return G
     
     
