@@ -11,6 +11,8 @@ from gurobipy import GRB
 import networkx as nx
 import random
 import matplotlib.pyplot as plt
+from scipy.stats import weibull_min
+import copy
 
 
 class rendezvous():
@@ -26,12 +28,30 @@ class rendezvous():
         self.road_network = road_network 
         
         # uav velocity
-        self.velocity_uav = {'v_be' : 9.8, 'v_br' : 16}
+        self.velocity_uav = {'v_be' : 9.8, 'v_br' : 14}
         
         # ugv velocity
         self.velocity_ugv = 4.5
 
         self.check_UGV_task()
+        
+        # time for changing battery
+        # Todo: choose a proper value 
+        self.chargin_time = 0
+        # power consumption
+        # heading = wind heading angle m/s, randomly sampled unless provided by user
+        self.wind_heading = np.random.rand()*2*np.pi
+        # meanW = average weight in kg
+        self.meanW = 2.3
+        # stdW = standard deviation of weight in kg
+        self.stdW = 0.05
+        # aG = characteristic velocity for
+        self.aG = 1.5
+        # bG = shape function of veloicty distribution, from https://wind-data.ch/tools/weibull.php
+        self.bG = 3
+        # coefficient
+        self.b = [-88.7661477109457,3.53178719017177,-0.420567520590965,0.0427521866683907,107.473389967445,-2.73619087492112]
+
                 
     def check_UGV_task(self):
         # check whether each task point is in road network
@@ -58,10 +78,43 @@ class rendezvous():
             # compute next state for UGV
             duration = self.UAV_task.edges[UAV_state, UAV_state_next]['dis']/self.velocity_uav['v_be']
             UGV_state_next = self.UGV_transit(UGV_state, UGV_task_state, duration)
+            power_consumed = self.power_consumption(self.velocity_uav['v_be'], duration)
+            battery_state_next = battery_state - power_consumed
+        
+        if action == 'v_br':
+            # UAV choose to go to next task node with best endurance velocity
+            descendants = list(self.UGV_task.neighbors[UAV_state])
+            assert len(descendants) == 1
+            UAV_state_next = descendants[0]
+            # compute next state for UGV
+            duration = self.UAV_task.edges[UAV_state, UAV_state_next]['dis']/self.velocity_uav['v_br']
+            UGV_state_next = self.UGV_transit(UGV_state, UGV_task_state, duration)
+            power_consumed = self.power_consumption(self.velocity_uav['v_br'], duration)
+            battery_state_next = battery_state - power_consumed
+            if battery_state_next < 0:
+                UAV_state_next = ('f', 'f')
+                UGV_state_next = ('f', 'f')
+                battery_state_next = ('empty')
+                return UAV_state_next, UGV_state_next, battery_state_next
+            
+        if action == 'v_be_be':
+            # UAV choose to go to next task node with best endurance velocity
+            descendants = list(self.UGV_task.neighbors[UAV_state])
+            assert len(descendants) == 1
+            UAV_state_next = descendants[0]
+            # compute rendezvous point and time
+            rendezvous_node, t1, t2 = self.rendezvous_point(UAV_state, UAV_state_next, 
+                                               UGV_state, UGV_task_state, self.velocity_uav['v_be'], self.velocity_uav['v_be'])
+            
+            # power consumed for rendezvous 
+            power_consumed = self.power_consumption(self.velocity_uav['v_be'], t1)
+            battery_state_next = battery_state - power_consumed
             
             
             
-        return UAV_state_next, UGV_state_next
+            
+            
+        
     
     def UGV_transit(self, UGV_state, UGV_task_state, duration):
         #last_task_state = (UGV_task_state[0], UGV_task_state[1])
@@ -86,13 +139,59 @@ class rendezvous():
         UGV_state_next = tuple(np.array(state_before_stop)-(dis-total_dis)*vector)
         return UGV_state_next
         
-    def power_consumption(self, SoC, action, duration):
+    def power_consumption(self, tgtV, duration):
         # return power distribution after taking action with SoC
-        return
+        # sample weight using random normal distribution of weight
+        W = self.stdW*np.random.randn() + self.meanW
+        
+        # solve for true airspeed by adding in weibull wind distribution with
+        # equally random heading direction of wind
+        # simplifying assumption is that only wind tangential to UAS heading affects power
+        disturbance = weibull_min.rvs(c=self.aG, loc=0, scale=self.bG)
+        V = abs(tgtV + disturbance*np.math.cos(-self.heading))
+        P = self.b[0] + self.b[1]*V + self.b[2]*V**2 + self.b[3]*V**3 + self.b[4]*W + self.b[5]*V*W
+        return P*duration
     
-    def rendezvous_point(self, state, action):
+    def rendezvous_point(self, UAV_state, UAV_state_next, UGV_state, UGV_task_state, vel_rdv, vel_sep):
         # return rendezvous point
-        return
+        UGV_task_before = (UGV_task_state[0], UGV_task_state[1])
+        UGV_task_next = (UGV_task_state[2], UGV_task_state[3])
+        G_road = copy.deepcopy(self.road_network)
+        G_road.remove_edge(UGV_task_before, UGV_task_next)
+        assert UGV_state != UGV_task_before
+        assert UGV_state != UGV_task_next
+        dis = np.linalg.norm(np.array(UGV_task_before) - np.array(UGV_state))
+        G_road.add_edge(UGV_task_before, UGV_state, dis=dis)
+        dis = np.linalg.norm(np.array(UGV_state) - np.array(UGV_task_next))
+        G_road.add_edge(UGV_state, UGV_task_next, dis=dis)
+        
+        rendezvous_node = UGV_state
+        dis1 = np.linalg.norm(np.array(UAV_state) - np.array(rendezvous_node))
+        dis2 = np.linalg.norm(np.array(UAV_state_next) - np.array(rendezvous_node))
+        # time taken to rendezvous
+        rendezvous_time1 = max(dis1/vel_rdv, 
+                              nx.shortest_path_length(G_road, source=UGV_state, 
+                                                      target=rendezvous_node, weight='dis'))
+        # time taken to go back to task
+        rendezvous_time2 = dis2/vel_sep
+        rendezvous_time = rendezvous_time1 + rendezvous_time2
+        
+        for node in G_road:
+            dis1 = np.linalg.norm(np.array(UAV_state) - np.array(node))
+            dis2 = np.linalg.norm(np.array(UAV_state_next) - np.array(node))
+            time1 = max(dis1/vel_rdv, 
+                                  nx.shortest_path_length(G_road, source=UGV_state, 
+                                                          target=rendezvous_node, weight='dis'))
+            time2 = dis2/vel_sep
+            time = time1 + time2
+            if time < rendezvous_time:
+                rendezvous_node = node
+                rendezvous_time = time
+                rendezvous_time1 = time1
+                rendezvous_time2 = time2
+        
+        
+        return rendezvous_node, rendezvous_time1, rendezvous_time2
     
     def get_states(self, state):
         # state = (xa, ya, xg, yg, SoC)
@@ -104,10 +203,12 @@ class rendezvous():
         
 
 def generate_road_network():
-    G = nx.DiGraph()
+    # it shouldn't be a directed graph
+    G = nx.Graph()
     # a simple straight line network
     for i in range(1, 30*60*5):
-        G.add_edge((0, (i-1)*5), (0, i*5))  
+        dis = np.linalg.norm(np.array((0, (i-1)*5))-np.array((0, i*5)))
+        G.add_edge((0, (i-1)*5), (0, i*5), dis=dis)  
     return G
 
 def generate_UAV_task():
