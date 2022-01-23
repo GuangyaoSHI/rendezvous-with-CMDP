@@ -87,7 +87,10 @@ class Rendezvous():
             UGV_state_next, UGV_task_state_ = self.UGV_transit(UGV_state, (UGV_task_state[2], UGV_task_state[3]), duration)
             power_consumed = self.power_consumption(self.velocity_uav[action], duration)
             battery_state_next = battery_state - power_consumed
+            if self.display:
+                self.display_task_transition(UAV_state, UAV_state_next, UGV_state, UGV_state_next, battery_state, battery_state_next)
             if battery_state_next < 0:
+               print("out of battery")
                UAV_state_next = ('f', 'f')
                UGV_state_next = ('f', 'f')
                battery_state_next = ('empty')
@@ -98,7 +101,7 @@ class Rendezvous():
             v1 = action[0:4]
             v2 = 'v'+action[4:]
             # UAV choose to go to next task node with best endurance velocity
-            descendants = list(self.UGV_task.neighbors[UAV_state])
+            descendants = list(self.UAV_task.neighbors(UAV_state))
             assert len(descendants) == 1
             UAV_state_next = descendants[0]
             # compute rendezvous point and time
@@ -233,22 +236,41 @@ class Rendezvous():
         battery_state = state[-1]
         return UAV_state, UGV_state, battery_state
     
-    def display_task_transition(self, ):
+    def display_task_transition(self, UAV_state_last, UAV_state_next, UGV_state_last, UGV_state_next, battery_state_last, battery_state_next):
         # plot road network
         fig, ax = plt.subplots()
-        line_road, = ax.plot([0, 30*60*5*5], [0, 0], color='k')
+        line_road, = ax.plot([0, 30*60*5*2.5], [0, 0], color='k', alpha=0.2)
         line_road.set_label('road network')
         
-          # plot UAV task
+        # plot UAV task
         for edge in self.UAV_task.edges:
             node1 = edge[0]
             node2 = edge[1]
             x, y = node1[0], node1[1]
             dx, dy = node2[0]-node1[0], node2[1]-node1[1]
-            line_UAV = ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=0.5, color='g')
+            line_UAV = ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=0.2, color='g')
+        # plot UAV transition
+        x, y = UAV_state_last[0], UAV_state_last[1]
+        dx, dy = UAV_state_next[0]-UAV_state_last[0],  UAV_state_next[1]-UAV_state_last[1]
+        ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+        ax.text(x+0.5*dx, y+0.5*dy, 'UAV from '+str(UAV_state_last)+' to '+str(UAV_state_next))
+        # battery state
+        ax.set_title("battery state from " + str(battery_state_last)+" to " + str(battery_state_next))
+        
+        # plot UGV transition
+        x, y = UGV_state_last[0], UGV_state_last[1]
+        dx, dy = UGV_state_next[0]-UGV_state_last[0],  UGV_state_next[1]-UGV_state_last[1]
+        ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=1, color='b')
+        ax.text(x, y, 'UGV from '+ str(UGV_state_last) + ' to '+ str(UGV_state_last))
+        ax.legend()
         return
         
-    def display_rendezvous(self,):
+    
+    
+    def display_rendezvous(self, rendezvous_node, UAV_state_last, UAV_state_next, 
+                           UGV_state_last, UGV_state_next, battery_state_last, 
+                           battery_state_next, battery_rendezvous):
+        
         return
         
 
@@ -356,7 +378,7 @@ if __name__ == "__main__" :
     UGV_state = (0, 0)
     battery_state = 319.7e3
     rendezvous = Rendezvous(UAV_task, UGV_task, road_network)
-    plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
+    #plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
     print("test UAV task action")
     print("UAV state is {}, UGV state is {}, battery state is {}".format(UAV_state, UGV_state, battery_state))
     action = 'v_be'
@@ -365,7 +387,7 @@ if __name__ == "__main__" :
     UGV_task_next = list(UGV_task.neighbors(UGV_state))[0]
     UGV_task_state = (UGV_state[0], UGV_state[1], UGV_task_next[0], UGV_task_next[1])
     UAV_state, UGV_state, UGV_task_state, battery_state = rendezvous.transit(state, action, UGV_task_state)
-    plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
+    #plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
     
     # test rendezvous action
     print("test UAV rendezvous action")
