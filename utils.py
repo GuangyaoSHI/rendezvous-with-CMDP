@@ -15,7 +15,7 @@ from scipy.stats import weibull_min
 import copy
 
 
-class rendezvous():
+class Rendezvous():
     def __init__(self, UAV_task, UGV_task, road_network):
         # a sequence of nodes in 2D plane, represented as a directed graph
         self.UAV_task = UAV_task 
@@ -42,7 +42,7 @@ class rendezvous():
         
         # total battery
         # Todo:choose a proper value 
-        self.battery = 10000
+        self.battery = 319.7e3
         # power consumption
         # heading = wind heading angle m/s, randomly sampled unless provided by user
         self.wind_heading = np.random.rand()*2*np.pi
@@ -56,6 +56,8 @@ class rendezvous():
         self.bG = 3
         # coefficient
         self.b = [-88.7661477109457,3.53178719017177,-0.420567520590965,0.0427521866683907,107.473389967445,-2.73619087492112]
+        # display transition
+        self.display = True
 
                 
     def check_UGV_task(self):
@@ -77,19 +79,19 @@ class rendezvous():
         
         if action in ['v_be', 'v_br']:
             # UAV choose to go to next task node with best endurance velocity
-            descendants = list(self.UGV_task.neighbors[UAV_state])
+            descendants = list(self.UAV_task.neighbors(UAV_state))
             assert len(descendants) == 1
             UAV_state_next = descendants[0]
             # compute next state for UGV
             duration = self.UAV_task.edges[UAV_state, UAV_state_next]['dis']/self.velocity_uav[action]
-            UGV_state_next = self.UGV_transit(UGV_state, (UGV_task_state[2], UGV_task_state[3]), duration)
+            UGV_state_next, UGV_task_state_ = self.UGV_transit(UGV_state, (UGV_task_state[2], UGV_task_state[3]), duration)
             power_consumed = self.power_consumption(self.velocity_uav[action], duration)
             battery_state_next = battery_state - power_consumed
             if battery_state_next < 0:
                UAV_state_next = ('f', 'f')
                UGV_state_next = ('f', 'f')
                battery_state_next = ('empty')
-               return UAV_state_next, UGV_state_next, battery_state_next
+               return UAV_state_next, UGV_state_next, UGV_task_state_, battery_state_next
         
             
         if action in ['v_be_be', 'v_be_br', 'v_br_be', 'v_br_br']:
@@ -125,10 +127,10 @@ class rendezvous():
             #Todo: in the rendezvous function the task of UGV will change
             #Todo: compute the state of UGV after t2 and return
             UGV_next_task = self.UGV_task.neighbors(rendezvous_node)[0]
-            UGV_state_next = self.UGV_transit(rendezvous_node, UGV_next_task, duration)
+            UGV_state_next, UGV_task_state_ = self.UGV_transit(rendezvous_node, UGV_next_task, duration)
         
         
-        return UAV_state_next, UGV_state_next, battery_state_next
+        return UAV_state_next, UGV_state_next, UGV_task_state_, battery_state_next
             
             
         
@@ -149,12 +151,15 @@ class rendezvous():
             dis += np.linalg.norm(np.array(descendants)-np.array(state_before_stop))
             state_before_stop = descendants
             
-        previous_state = self.UGV_task.predecessors(state_before_stop)
+        previous_state = list(self.UGV_task.predecessors(state_before_stop))
+        assert len(previous_state) == 1
+        previous_state = previous_state[0]
         vector = np.array(previous_state) - np.array(state_before_stop)
         vector = vector/np.linalg.norm(vector)
         assert dis>= total_dis
         UGV_state_next = tuple(np.array(state_before_stop)-(dis-total_dis)*vector)
-        return UGV_state_next
+        UGV_task_state = (previous_state[0], previous_state[1], state_before_stop[0], state_before_stop[1])
+        return UGV_state_next, UGV_task_state
         
     def power_consumption(self, tgtV, duration):
         # return power distribution after taking action with SoC
@@ -165,7 +170,7 @@ class rendezvous():
         # equally random heading direction of wind
         # simplifying assumption is that only wind tangential to UAS heading affects power
         disturbance = weibull_min.rvs(c=self.aG, loc=0, scale=self.bG)
-        V = abs(tgtV + disturbance*np.math.cos(-self.heading))
+        V = abs(tgtV + disturbance*np.math.cos(-self.wind_heading))
         P = self.b[0] + self.b[1]*V + self.b[2]*V**2 + self.b[3]*V**3 + self.b[4]*W + self.b[5]*V*W
         return P*duration
     
@@ -227,6 +232,24 @@ class rendezvous():
         UGV_state = (state[2], state[3])
         battery_state = state[-1]
         return UAV_state, UGV_state, battery_state
+    
+    def display_task_transition(self, ):
+        # plot road network
+        fig, ax = plt.subplots()
+        line_road, = ax.plot([0, 30*60*5*5], [0, 0], color='k')
+        line_road.set_label('road network')
+        
+          # plot UAV task
+        for edge in self.UAV_task.edges:
+            node1 = edge[0]
+            node2 = edge[1]
+            x, y = node1[0], node1[1]
+            dx, dy = node2[0]-node1[0], node2[1]-node1[1]
+            line_UAV = ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=0.5, color='g')
+        return
+        
+    def display_rendezvous(self,):
+        return
         
 
 def generate_road_network():
@@ -235,7 +258,9 @@ def generate_road_network():
     # a simple straight line network
     for i in range(1, 30*60*5):
         dis = np.linalg.norm(np.array((0, (i-1)*5))-np.array((0, i*5)))
-        G.add_edge((0, (i-1)*5), (0, i*5), dis=dis)  
+        G.add_edge(((i-1)*5, 0), (i*5, 0), dis=dis)  
+    pos = dict(zip(G.nodes, G.nodes))
+    #nx.draw(G, pos=pos)
     return G
 
 def generate_UAV_task():
@@ -266,7 +291,7 @@ def generate_UAV_task():
             curr_node = next_node
             
     pos = dict(zip(G.nodes, G.nodes))
-    nx.draw(G, pos=pos)
+    #nx.draw(G, pos=pos)
     return G
 
     
@@ -276,11 +301,83 @@ def generate_UGV_task():
     goal = []
     for i in range(1, 30*60*4):
         dis = np.linalg.norm(np.array((0, (i-1)*5))-np.array((0, i*5)))
-        G.add_edge((0, (i-1)*5), (0, i*5), dis=dis)
+        G.add_edge(((i-1)*5, 0), (i*5, 0), dis=dis)
         goal = (0, i*5)
     G.graph['UGV_goal'] = goal
+    pos = dict(zip(G.nodes, G.nodes))
+    #nx.draw(G, pos=pos)
     return G
+
+def plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state, ):
+    # plot road network
+    fig, ax = plt.subplots()
+    line_road, = ax.plot([0, 30*60*5*5], [0, 0], color='k')
+ 
+    line_road.set_label('road network')
     
+    # plot UAV task
+    for edge in UAV_task.edges:
+        node1 = edge[0]
+        node2 = edge[1]
+        x, y = node1[0], node1[1]
+        dx, dy = node2[0]-node1[0], node2[1]-node1[1]
+        line_UAV = ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=0.8, color='g') 
+    
+    # plot UGV task
+    # for edge in UGV_task.edges:
+    #     node1 = edge[0]
+    #     node2 = edge[1]
+    #     x, y = node1[0], node1[1]
+    #     dx, dy = node2[0]-node1[0], node2[1]-node1[1]
+    #     line_UGV = ax.arrow(x, y, dx, dy, alpha=0.8, color='k') 
+    # line_UGV.set_label('UGV task')
+    
+    # plot UAV
+    ax.plot(UAV_state[0], UAV_state[1], color='r', marker='s')
+    ax.text(UAV_state[0], UAV_state[1], 'UAV')    
+    
+    # plot UGV
+    ax.plot(UGV_state[0], UGV_state[1], color='r', marker='s')
+    ax.text(UGV_state[0], UGV_state[1], 'UGV')
+    
+    # battery state
+    ax.set_title("battery state is: " + str(battery_state))
+    ax.legend()
+
+    
+    
+
+if __name__ == "__main__" :
+    print("hello world")
+    UAV_task = generate_UAV_task()
+    UGV_task = generate_UGV_task()
+    road_network = generate_road_network()
+    UAV_state = [x for x in UAV_task.nodes if (UAV_task.out_degree(x)==1 and UAV_task.in_degree(x)==0)][0]
+    UGV_state = (0, 0)
+    battery_state = 319.7e3
+    rendezvous = Rendezvous(UAV_task, UGV_task, road_network)
+    plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
+    print("test UAV task action")
+    print("UAV state is {}, UGV state is {}, battery state is {}".format(UAV_state, UGV_state, battery_state))
+    action = 'v_be'
+    print("UAV take action {} to transit to the next task node".format(action))
+    state = (UAV_state[0], UAV_state[1], UGV_state[0], UGV_state[1], battery_state)
+    UGV_task_next = list(UGV_task.neighbors(UGV_state))[0]
+    UGV_task_state = (UGV_state[0], UGV_state[1], UGV_task_next[0], UGV_task_next[1])
+    UAV_state, UGV_state, UGV_task_state, battery_state = rendezvous.transit(state, action, UGV_task_state)
+    plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
+    
+    # test rendezvous action
+    print("test UAV rendezvous action")
+    print("UAV state is {}, UGV state is {}, battery state is {}".format(UAV_state, UGV_state, battery_state))
+    action = 'v_be_be'
+    state = (UAV_state[0], UAV_state[1], UGV_state[0], UGV_state[1], battery_state)
+    UAV_state, UGV_state, UGV_task_state, battery_state = rendezvous.transit(state, action, UGV_task_state)
+    plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
+
+    
+    
+
     
      
     
