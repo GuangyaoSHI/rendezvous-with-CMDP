@@ -109,8 +109,13 @@ class Rendezvous():
                                                UGV_state, UGV_task_state, self.velocity_uav[v1], self.velocity_uav[v2])
             
             # power consumed for rendezvous 
-            power_consumed = self.power_consumption(self.velocity_uav['v_be'], t1)
-            battery_state_next = battery_state - power_consumed
+            power_consumed1 = self.power_consumption(self.velocity_uav[v1], t1)
+            power_consumed2 = self.power_consumption(self.velocity_uav[v2], t2)
+            battery_state_next = battery_state - power_consumed1
+            if self.display:
+                self.display_rendezvous(rendezvous_node, UAV_state, UAV_state_next, 
+                                    UGV_state, UGV_state_next, battery_state, 
+                                    self.battery - power_consumed2, battery_state - power_consumed1)
             # UAV cannot rendezvous
             if battery_state_next < 0:
                 UAV_state_next = ('f', 'f')
@@ -119,8 +124,7 @@ class Rendezvous():
                 return UAV_state_next, UGV_state_next, battery_state_next
             
             # UAV cannot go back to next task node
-            power_consumed = self.power_consumption(self.velocity_uav['v_be'], t2)
-            battery_state_next = self.battery - power_consumed
+            battery_state_next = self.battery - power_consumed2
             if battery_state_next < 0:
                 UAV_state_next = ('f', 'f')
                 UGV_state_next = ('f', 'f')
@@ -261,15 +265,51 @@ class Rendezvous():
         x, y = UGV_state_last[0], UGV_state_last[1]
         dx, dy = UGV_state_next[0]-UGV_state_last[0],  UGV_state_next[1]-UGV_state_last[1]
         ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=1, color='b')
-        ax.text(x, y, 'UGV from '+ str(UGV_state_last) + ' to '+ str(UGV_state_last))
+        ax.text(x, y, 'UGV from '+ str(UGV_state_last) + ' to '+ str(UGV_state_next))
         ax.legend()
-        return
+        
         
     
     
     def display_rendezvous(self, rendezvous_node, UAV_state_last, UAV_state_next, 
                            UGV_state_last, UGV_state_next, battery_state_last, 
                            battery_state_next, battery_rendezvous):
+        # plot road network
+        fig, ax = plt.subplots()
+        line_road, = ax.plot([0, 30*60*5*2.5], [0, 0], color='k', alpha=0.2)
+        line_road.set_label('road network')
+        # plot UAV task
+        for edge in self.UAV_task.edges:
+            node1 = edge[0]
+            node2 = edge[1]
+            x, y = node1[0], node1[1]
+            dx, dy = node2[0]-node1[0], node2[1]-node1[1]
+            line_UAV = ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=0.2, color='g')
+        # plot UAV transition to rendezvous node 
+        x, y = UAV_state_last[0], UAV_state_last[1]
+        dx, dy = rendezvous_node[0]-UAV_state_last[0],  rendezvous_node[1]-UAV_state_last[1]
+        ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+        ax.text(x+0.5*dx, y+0.5*dy, 'UAV rendezvous:'+str(UAV_state_last)+' to '+str(rendezvous_node))
+        
+        x, y = rendezvous_node[0], rendezvous_node[1]
+        dx, dy = UAV_state_next[0]-rendezvous_node[0],  UAV_state_next[1]-rendezvous_node[1]
+        ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+        ax.text(x+0.5*dx, y+0.5*dy, 'UAV from '+str(rendezvous_node)+' to '+str(UAV_state_next))
+        # battery state
+        ax.set_title("B:"+str(int(battery_state_last))+" to "+ str(int(battery_rendezvous))+" to "+str(int(battery_state_next)))
+        
+        
+        # plot UGV transition to rendezvous node 
+        x, y = UGV_state_last[0], UGV_state_last[1]
+        dx, dy = rendezvous_node[0]-UGV_state_last[0],  rendezvous_node[1]-UGV_state_last[1]
+        ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+        ax.text(x+0.5*dx, y+100, 'UGV rendezvous:'+str(UGV_state_last)+' to '+str(rendezvous_node))
+        
+        x, y = rendezvous_node[0], rendezvous_node[1]
+        dx, dy = UGV_state_next[0]-rendezvous_node[0],  UGV_state_next[1]-rendezvous_node[1]
+        ax.quiver(x, y, dx, dy, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+        ax.text(x+0.5*dx, y-100, 'UGV from '+str(rendezvous_node)+' to '+str(UGV_state_next))
+        
         
         return
         
