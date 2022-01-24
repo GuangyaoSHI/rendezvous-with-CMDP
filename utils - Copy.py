@@ -383,11 +383,11 @@ def generate_UGV_task():
     # a simple straight line network
     goal = []
     node_index = 0
-    for i in range(1, 30*4):
-        dis = np.linalg.norm(np.array((0, (i-1)*5*60))-np.array((0, i*5*60)))
+    for i in range(1, 30*60*4):
+        dis = np.linalg.norm(np.array((0, (i-1)*5))-np.array((0, i*5)))
         G.add_edge(node_index, node_index+1, dis=dis)
-        G.nodes[node_index]['pos'] = ((i-1)*5*60, 0)
-        G.nodes[node_index+1]['pos'] = (i*5*60, 0)
+        G.nodes[node_index]['pos'] = ((i-1)*5, 0)
+        G.nodes[node_index+1]['pos'] = (i*5, 0)
         node_index += 1
     G.graph['UGV_goal'] = node_index
     pos = dict(zip(G.nodes, G.nodes))
