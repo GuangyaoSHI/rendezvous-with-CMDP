@@ -144,16 +144,33 @@ class Rendezvous():
             
         
     
-    def UGV_transit(self, UGV_state, UGV_next_node, duration):
-        #last_task_state = (UGV_task_state[0], UGV_task_state[1])
+    def UGV_transit(self, UGV_state, UGV_state_road, UGV_next_task_node, duration):
+        # UGV_state_road = (x1, y1, x2, y2)
+        # this information helps to locate UGV in the road network
         # Todo: check UGV_state is indeed between two task nodes
-     
+        
+        # temporarily insert UGV_state into road network
+        previous_road_state = (UGV_state_road[0], UGV_state_road[1])
+        assert previous_road_state in self.road_network.nodes
+        next_road_state = (UGV_state_road[2], UGV_state_road[3])
+        assert next_road_state in self.road_network.nodes
+        if UGV_state not in [previous_road_state, next_road_state]:
+            self.road_network.remove_edge(previous_road_state, next_road_state)
+            dis = np.linalg.norm(np.array(previous_road_state)-np.array(UGV_state))
+            self.road_network.add_edge(previous_road_state, UGV_state, dis=dis)
+            dis = np.linalg.norm(np.array(next_road_state)-np.array(UGV_state))
+            self.road_network.add_edge(UGV_state, next_road_state, dis=dis)
+            
+          
+ 
+            
         
         # UGV will move duration * velocity distance along the task path
         total_dis = self.velocity_ugv * duration
         
-        node_before_stop = UGV_next_node
+        node_before_stop = UGV_next_task_node
         state_before_stop = self.UGV_task.nodes[node_before_stop]['pos']
+        path = nx.shortest_path(self.road_network, source=UGV_state, target=state_before_stop)
         dis = np.linalg.norm(np.array(UGV_state)-np.array(state_before_stop))
         
         while (dis < total_dis):
