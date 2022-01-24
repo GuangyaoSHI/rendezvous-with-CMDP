@@ -287,7 +287,7 @@ class Rendezvous():
         ax.text(x, y, 'UGV from '+ str((int(UGV_state_last[0]), int(UGV_state_last[1]))) 
                 + ' to '+ str((int(UGV_state_next[0]), int(UGV_state_next[1]))))
         ax.legend()
-        
+        fig.savefig("task_transition.pdf")
         
     
     
@@ -332,7 +332,7 @@ class Rendezvous():
         ax.set_xlabel("UGV:"+str((int(UGV_state_last[0]), int(UGV_state_last[1])))+" to "+
                       str((int(rendezvous_node[0]), int(rendezvous_node[1])))+
                       " to "+str((int(UGV_state_next[0]), int(UGV_state_next[1]))))
-        
+        fig.savefig("rendezvous.pdf")
         
 
 def generate_road_network():
