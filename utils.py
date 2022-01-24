@@ -161,9 +161,6 @@ class Rendezvous():
             dis = np.linalg.norm(np.array(next_road_state)-np.array(UGV_state))
             self.road_network.add_edge(UGV_state, next_road_state, dis=dis)
             
-          
- 
-            
         
         # UGV will move duration * velocity distance along the task path
         total_dis = self.velocity_ugv * duration
