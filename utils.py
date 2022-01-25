@@ -27,7 +27,7 @@ class Rendezvous():
         
         # road network can be viewed as a fine discretization of 2D continuous road network
         self.road_network = road_network 
-        
+        self.road_network_ = copy.deepcopy(road_network)
         # uav velocity
         self.velocity_uav = {'v_be' : 9.8, 'v_br' : 14}
         
@@ -38,7 +38,7 @@ class Rendezvous():
         
         # time for changing battery
         # Todo: choose a proper value 
-        self.chargin_time = 0
+        self.charging_time = 0
         
         # total battery
         # Todo:choose a proper value 
@@ -68,15 +68,18 @@ class Rendezvous():
         
     
         
-    def transit(self, state, action, UGV_task_state):
+    def transit(self, state, action, UGV_road_state, UGV_task_node):
         # return probability distribution P(s' | s, a)
         # state = (xa, ya, xg, yg, SoC)
         # action: {'v_be', 'v_br', 'v_be_be', 'v_be_br', 'v_br_be', 'v_br_br'}
-        # UGV_task_state: UGV is transiting from which node to which
-        # (node1, node2)
+        # UGV_state_road (x1, y1, x2, y2): UGV is transiting from (x1, y1) to (x2, y2) on road network
+        # UGV_task_node: the task node in UGV_task that UGV is moving towards
         UAV_state, UGV_state, battery_state = self.get_states(state)
         UAV_state_next = []
         UGV_state_next = []
+        UGV_road_state_next = []
+        # the task node that UGV should move towards after transition
+        UGV_task_node_next = []
         battery_state_next = []
         
         if action in ['v_be', 'v_br']:
@@ -86,7 +89,7 @@ class Rendezvous():
             UAV_state_next = descendants[0]
             # compute next state for UGV
             duration = self.UAV_task.edges[UAV_state, UAV_state_next]['dis']/self.velocity_uav[action]
-            UGV_state_next, UGV_task_state_ = self.UGV_transit(UGV_state, UGV_task_state[1], duration)
+            UGV_state_next, UGV_state_road_next, UGV_task_node_next = self.UGV_transit(UGV_state, UGV_road_state, UGV_task_node, duration)
             power_consumed = self.power_consumption(self.velocity_uav[action], duration)
             battery_state_next = battery_state - power_consumed
             if self.display:
@@ -96,7 +99,7 @@ class Rendezvous():
                UAV_state_next = ('f', 'f')
                UGV_state_next = ('f', 'f')
                battery_state_next = ('empty')
-               return UAV_state_next, UGV_state_next, UGV_task_state_, battery_state_next
+               return UAV_state_next, UGV_state_next, UGV_state_road_next, UGV_task_node_next, battery_state_next
         
             
         if action in ['v_be_be', 'v_be_br', 'v_br_be', 'v_br_br']:
@@ -107,13 +110,12 @@ class Rendezvous():
             assert len(descendants) == 1
             UAV_state_next = descendants[0]
             # compute rendezvous point and time
-            rendezvous_node, t1, t2 = self.rendezvous_point(UAV_state, UAV_state_next, 
-                                               UGV_state, UGV_task_state, self.velocity_uav[v1], self.velocity_uav[v2])
+            rendezvous_state, t1, t2 = self.rendezvous_point(UAV_state, UAV_state_next, 
+                                               UGV_state, UGV_road_state, UGV_task_node, self.velocity_uav[v1], self.velocity_uav[v2])
             
-            #Todo: in the rendezvous function the task of UGV will change
             #Todo: compute the state of UGV after t2 and return
-            UGV_next_node = 1
-            UGV_state_next, UGV_task_state_ = self.UGV_transit(rendezvous_node, UGV_next_node, t2)
+            assert rendezvous_state in self.road_network
+            UGV_state_next, UGV_task_state_ = self.UGV_transit(rendezvous_state, rendezvous_road_state, UGV_task_node, t2)
             
             
             # power consumed for rendezvous 
@@ -121,7 +123,7 @@ class Rendezvous():
             power_consumed2 = self.power_consumption(self.velocity_uav[v2], t2)
             battery_state_next = battery_state - power_consumed1
             if self.display:
-                self.display_rendezvous(rendezvous_node, UAV_state, UAV_state_next, 
+                self.display_rendezvous(rendezvous_state, UAV_state, UAV_state_next, 
                                     UGV_state, UGV_state_next, battery_state, 
                                     self.battery - power_consumed2, battery_state - power_consumed1)
             # UAV cannot rendezvous
@@ -129,7 +131,8 @@ class Rendezvous():
                 UAV_state_next = ('f', 'f')
                 UGV_state_next = ('f', 'f')
                 battery_state_next = ('empty')
-                return UAV_state_next, UGV_state_next, battery_state_next
+                return UAV_state_next, UGV_state_next, UGV_state_road_next, UGV_task_node_next, battery_state_next
+
             
             # UAV cannot go back to next task node
             battery_state_next = self.battery - power_consumed2
@@ -137,22 +140,22 @@ class Rendezvous():
                 UAV_state_next = ('f', 'f')
                 UGV_state_next = ('f', 'f')
                 battery_state_next = ('empty')
-                return UAV_state_next, UGV_state_next, battery_state_next
+                return UAV_state_next, UGV_state_next, UGV_state_road_next, UGV_task_node_next, battery_state_next
             
-        return UAV_state_next, UGV_state_next, UGV_task_state_, battery_state_next
+            return UAV_state_next, UGV_state_next, UGV_state_road_next, UGV_task_node_next, battery_state_next
             
             
         
     
-    def UGV_transit(self, UGV_state, UGV_state_road, UGV_next_task_node, duration):
-        # UGV_state_road = (x1, y1, x2, y2)
+    def UGV_transit(self, UGV_state, UGV_road_state, UGV_task_node, duration):
+        # UGV_road_state = (x1, y1, x2, y2)
         # this information helps to locate UGV in the road network
         # Todo: check UGV_state is indeed between two task nodes
         
         # temporarily insert UGV_state into road network
-        previous_road_state = (UGV_state_road[0], UGV_state_road[1])
+        previous_road_state = (UGV_road_state[0], UGV_road_state[1])
         assert previous_road_state in self.road_network.nodes
-        next_road_state = (UGV_state_road[2], UGV_state_road[3])
+        next_road_state = (UGV_road_state[2], UGV_road_state[3])
         assert next_road_state in self.road_network.nodes
         if UGV_state not in [previous_road_state, next_road_state]:
             self.road_network.remove_edge(previous_road_state, next_road_state)
@@ -160,32 +163,53 @@ class Rendezvous():
             self.road_network.add_edge(previous_road_state, UGV_state, dis=dis)
             dis = np.linalg.norm(np.array(next_road_state)-np.array(UGV_state))
             self.road_network.add_edge(UGV_state, next_road_state, dis=dis)
-            
+        assert UGV_state in self.road_network.nodes    
         
         # UGV will move duration * velocity distance along the task path
         total_dis = self.velocity_ugv * duration
         
-        node_before_stop = UGV_next_task_node
+        # task node after moving t=duration
+        node_before_stop = UGV_task_node
         state_before_stop = self.UGV_task.nodes[node_before_stop]['pos']
-        path = nx.shortest_path(self.road_network, source=UGV_state, target=state_before_stop)
-        dis = np.linalg.norm(np.array(UGV_state)-np.array(state_before_stop))
+        dis = nx.shortest_path_length(self.road_network, source=UGV_state, target=state_before_stop)
         
+        # identify the task node before which UGV will stop
         while (dis < total_dis):
-            descendant = list(self.UGV_task.neighbors(node_before_stop))[0]
-            descendant_state = self.UGV_task.nodes[descendant]['pos']
-            dis += np.linalg.norm(np.array(descendant_state)-np.array(state_before_stop))
-            node_before_stop = descendant
+            descendant_task = list(self.UGV_task.neighbors(node_before_stop))[0]
+            descendant_task_state = self.UGV_task.nodes[descendant_task]['pos']
+            dis += nx.shortest_path_length(self.road_network, source=UGV_state, target=descendant_task_state)
+            node_before_stop = descendant_task
             state_before_stop = self.UGV_task.nodes[node_before_stop]['pos']
+        
+        path = nx.shortest_path(self.road_network, source=UGV_state, target=state_before_stop)
+        assert nx.shortest_path_length(self.road_network, source=UGV_state, 
+                                       target=self.UGV_task.nodes[node_before_stop-1]['pos'])<total_dis
+        # update task node for UGV
+        UGV_task_node_next = node_before_stop 
+        # back tracking to identify UGV's position
+        L = len(path)
+        node_index = L-1
+        sp_dis = 0
+        # from last to first in the path list
+        for i in range(0, L):
+            node_index = (L-1) - i;
+            # shortest path length from source to this node
+            # Todo: this is very inefficient 
+            sp_dis = nx.shortest_path_length(self.road_network, source=UGV_state, target=path[node_index])
+            if sp_dis <= total_dis:
+                break
             
-        previous_node = list(self.UGV_task.predecessors(node_before_stop))
-        assert len(previous_node) == 1
-        previous_state = self.UGV_task.nodes[previous_node[0]]['pos'] 
-        vector = np.array(previous_state) - np.array(state_before_stop)
+        # recovering road network
+        self.road_network = nx.Graph(self.road_network_)
+        
+        previous_road_state = path[node_index]
+        next_road_state = path[node_index+1]
+        vector =  np.array(next_road_state) - np.array(previous_road_state)
         vector = vector/np.linalg.norm(vector)
         assert dis>= total_dis
-        UGV_state_next = tuple(np.array(state_before_stop)+(dis-total_dis)*vector)
-        UGV_task_state = (previous_node[0], node_before_stop)
-        return UGV_state_next, UGV_task_state
+        UGV_state_next = tuple(np.array(previous_road_state)+(dis-sp_dis)*vector)
+        UGV_state_road_next = previous_road_state + next_road_state
+        return UGV_state_next, UGV_state_road_next, UGV_task_node_next
         
     def power_consumption(self, tgtV, duration):
         # return power distribution after taking action with SoC
@@ -200,69 +224,54 @@ class Rendezvous():
         P = self.b[0] + self.b[1]*V + self.b[2]*V**2 + self.b[3]*V**3 + self.b[4]*W + self.b[5]*V*W
         return P*duration
     
-    def rendezvous_point(self, UAV_state, UAV_state_next, UGV_state, UGV_task_state, vel_rdv, vel_sep):
+    def rendezvous_point(self, UAV_state, UAV_state_next, UGV_state, UGV_road_state, UGV_task_node, vel_rdv, vel_sep):
         # return rendezvous point
-        UGV_task_before = self.UGV_task.nodes[UGV_task_state[0]]['pos']
-        UGV_task_next = self.UGV_task.nodes[UGV_task_state[1]]['pos']
-        G_road = copy.deepcopy(self.road_network)
+        # temporarily insert UGV_state into road network
+        previous_road_state = (UGV_road_state[0], UGV_road_state[1])
+        assert previous_road_state in self.road_network.nodes
+        next_road_state = (UGV_road_state[2], UGV_road_state[3])
+        assert next_road_state in self.road_network.nodes
+        if UGV_state not in [previous_road_state, next_road_state]:
+            self.road_network.remove_edge(previous_road_state, next_road_state)
+            dis = np.linalg.norm(np.array(previous_road_state)-np.array(UGV_state))
+            self.road_network.add_edge(previous_road_state, UGV_state, dis=dis)
+            dis = np.linalg.norm(np.array(next_road_state)-np.array(UGV_state))
+            self.road_network.add_edge(UGV_state, next_road_state, dis=dis)
+        assert UGV_state in self.road_network.nodes
         
-        assert UGV_task_before in G_road.nodes
-        assert UGV_task_next in G_road.nodes
-        
-        # Todo: if UGV_state is exactly on one task node, there may be an error
-        if not (UGV_task_before == UGV_state or UGV_task_next == UGV_state):
-            G_road.remove_edge(UGV_task_before, UGV_task_next)
-            dis = np.linalg.norm(np.array(UGV_task_before) - np.array(UGV_state))
-            G_road.add_edge(UGV_task_before, UGV_state, dis=dis)
-            dis = np.linalg.norm(np.array(UGV_state) - np.array(UGV_task_next))
-            G_road.add_edge(UGV_state, UGV_task_next, dis=dis)
-        
-        # make sure UGV_state is in G_road
-        assert UGV_state in G_road.nodes
-        
-        rendezvous_node = UGV_state
-        dis1 = np.linalg.norm(np.array(UAV_state) - np.array(rendezvous_node))
-        dis2 = np.linalg.norm(np.array(UAV_state_next) - np.array(rendezvous_node))
+        rendezvous_state = UGV_state
+        dis1 = np.linalg.norm(np.array(UAV_state) - np.array(rendezvous_state))
+        dis2 = np.linalg.norm(np.array(UAV_state_next) - np.array(rendezvous_state))
         # time taken to rendezvous
         rendezvous_time1 = max(dis1/vel_rdv, 
-                              nx.shortest_path_length(G_road, source=UGV_state, 
-                                                      target=rendezvous_node, weight='dis')/self.velocity_ugv)
+                              nx.shortest_path_length(self.road_network, source=UGV_state, 
+                                                      target=rendezvous_state, weight='dis')/self.velocity_ugv)
         # time taken to go back to task
         rendezvous_time2 = dis2/vel_sep
-        rendezvous_time = rendezvous_time1 + rendezvous_time2
+        # Todo: add charging time
+        rendezvous_time = rendezvous_time1 + rendezvous_time2 + self.charging_time
         
-        for node in G_road:
+        # Todo: make this more efficient
+        for node in self.road_network:
             dis1 = np.linalg.norm(np.array(UAV_state) - np.array(node))
             dis2 = np.linalg.norm(np.array(UAV_state_next) - np.array(node))
             time1 = max(dis1/vel_rdv, 
-                                  nx.shortest_path_length(G_road, source=UGV_state, 
-                                                          target=rendezvous_node, weight='dis')/self.velocity_ugv)
+                                  nx.shortest_path_length(self.road_network, source=UGV_state, 
+                                                          target=rendezvous_state, weight='dis')/self.velocity_ugv)
             time2 = dis2/vel_sep
-            time = time1 + time2
+            time = time1 + time2 + self.charging_time
             if time < rendezvous_time:
-                rendezvous_node = node
+                rendezvous_state = node
                 rendezvous_time = time
                 rendezvous_time1 = time1
                 rendezvous_time2 = time2
         
+        
+        # recovering road network
+        self.road_network = nx.Graph(self.road_network_)
         # update UGV task 
-        # Todo: 
-        rendezvous_node2task = nx.shortest_path(self.road_network, source=rendezvous_node, target=UGV_task_next)
-        task2goal = nx.shortest_path(self.UGV_task, source=UGV_task_state[1], target=self.UGV_goal)
-        new_task = nx.DiGraph()
-        node_index = 0
-        for i in range(len(rendezvous_node2task)-1):
-            new_task.add_edge(node_index, node_index+1)
-            new_task.nodes[node_index]['pos'] = rendezvous_node2task[i]
-            new_task.nodes[node_index+1]['pos'] = rendezvous_node2task[i+1]
-            node_index += 1
-        for i in range(len(task2goal)-1):
-            new_task.add_edge(node_index, node_index+1)
-            new_task.nodes[node_index]['pos'] = self.UGV_task.nodes[task2goal[i]]['pos']
-            new_task.nodes[node_index+1]['pos'] = self.UGV_task.nodes[task2goal[i+1]]['pos']
-            node_index += 1
-        self.UGV_task = new_task
-        return rendezvous_node, rendezvous_time1, rendezvous_time2
+        # Todo: consider the influence of rendezvous to UGV's task
+        return rendezvous_state, rendezvous_time1, rendezvous_time2
     
     def get_states(self, state):
         # state = (xa, ya, xg, yg, SoC)
