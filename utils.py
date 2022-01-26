@@ -90,6 +90,7 @@ class Rendezvous():
             # compute next state for UGV
             duration = self.UAV_task.edges[UAV_state, UAV_state_next]['dis']/self.velocity_uav[action]
             UGV_state_next, UGV_road_state_next, UGV_task_node_next = self.UGV_transit(UGV_state, UGV_road_state, UGV_task_node, duration)
+            # Todo should return power distribution
             power_consumed = self.power_consumption(self.velocity_uav[action], duration)
             battery_state_next = battery_state - power_consumed
             if self.display:
@@ -98,7 +99,7 @@ class Rendezvous():
                print("out of battery")
                UAV_state_next = ('f', 'f')
                UGV_state_next = ('f', 'f')
-               battery_state_next = ('empty')
+               battery_state_next = 'f'
                return UAV_state_next, UGV_state_next, UGV_road_state_next, UGV_task_node_next, battery_state_next
         
             
@@ -132,7 +133,7 @@ class Rendezvous():
             if battery_state_next < 0:
                 UAV_state_next = ('f', 'f')
                 UGV_state_next = ('f', 'f')
-                battery_state_next = ('empty')
+                battery_state_next = 'f'
                 return UAV_state_next, UGV_state_next, UGV_road_state_next, UGV_task_node_next, battery_state_next
 
             
@@ -141,13 +142,11 @@ class Rendezvous():
             if battery_state_next < 0:
                 UAV_state_next = ('f', 'f')
                 UGV_state_next = ('f', 'f')
-                battery_state_next = ('empty')
+                battery_state_next = 'f'
                 return UAV_state_next, UGV_state_next, UGV_road_state_next, UGV_task_node_next, battery_state_next
             
         return UAV_state_next, UGV_state_next, UGV_road_state_next, UGV_task_node_next, battery_state_next
             
-            
-        
     
     def UGV_transit(self, UGV_state, UGV_road_state, UGV_task_node, duration):
         # UGV_road_state = (x1, y1, x2, y2)
@@ -225,6 +224,9 @@ class Rendezvous():
         V = abs(tgtV + disturbance*np.math.cos(-self.wind_heading))
         P = self.b[0] + self.b[1]*V + self.b[2]*V**2 + self.b[3]*V**3 + self.b[4]*W + self.b[5]*V*W
         return P*duration
+    
+    def get_power_consumption_distribution(self, tgtV, duration):
+        return
     
     def rendezvous_point(self, UAV_state, UAV_state_next, UGV_state, UGV_road_state, UGV_task_node, vel_rdv, vel_sep):
         # return rendezvous point
@@ -311,7 +313,7 @@ class Rendezvous():
         ax.text(x, y, 'UGV from '+ str((int(UGV_state_last[0]), int(UGV_state_last[1]))) 
                 + ' to '+ str((int(UGV_state_next[0]), int(UGV_state_next[1]))))
         ax.legend()
-        fig.savefig("task_transition.pdf")
+        #fig.savefig("task_transition.pdf")
         
     
     
@@ -356,7 +358,7 @@ class Rendezvous():
         ax.set_xlabel("UGV:"+str((int(UGV_state_last[0]), int(UGV_state_last[1])))+" to "+
                       str((int(rendezvous_node[0]), int(rendezvous_node[1])))+
                       " to "+str((int(UGV_state_next[0]), int(UGV_state_next[1]))))
-        fig.savefig("rendezvous.pdf")
+        #fig.savefig("rendezvous.pdf")
         
 
 def generate_road_network():
