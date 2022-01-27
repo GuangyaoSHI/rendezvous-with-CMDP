@@ -437,18 +437,19 @@ def generate_UGV_task():
     # a simple straight line network
     goal = []
     node_index = 0
-    for i in range(30):
+    for i in range(1):
         dis = np.linalg.norm(np.array(((1-1)*5*60+3731, 0))-np.array((19*5+3731, 0)))
         G.add_edge(node_index, node_index+1, dis=dis)
+        G.add_edge(node_index+1, node_index, dis=dis)
         G.nodes[node_index]['pos'] = ((1-1)*5*60+3731, 0)
         G.nodes[node_index+1]['pos'] = (19*5+3731, 0)
         node_index += 1
-        dis = np.linalg.norm(np.array((19*5+3731, 0))-np.array(((1-1)*5*60+3731, 0)))
-        G.add_edge(node_index, node_index+1, dis=dis)
-        G.nodes[node_index]['pos'] = (19*5+3731, 0)
-        G.nodes[node_index+1]['pos'] = ((1-1)*5*60+3731, 0)
-        node_index += 1
-    
+        # dis = np.linalg.norm(np.array((19*5+3731, 0))-np.array(((1-1)*5*60+3731, 0)))
+        # G.add_edge(node_index, node_index+1, dis=dis)
+        # G.nodes[node_index]['pos'] = (19*5+3731, 0)
+        # G.nodes[node_index+1]['pos'] = ((1-1)*5*60+3731, 0)
+        # node_index += 1
+        
     G.graph['UGV_goal'] = node_index
     G.graph['UGV_task_state'] = [((1-1)*5*60+3731, 0), (19*5+3731, 0)]
     pos = dict(zip(G.nodes, G.nodes))
