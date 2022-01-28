@@ -180,6 +180,7 @@ for state in G_.nodes:
     if state == ('f', 'f'):
         indices.append((state[0], state[1], 'l', 'l'))
         continue
+    
     # didn't define state-action variable for loop state
     # Todo
     

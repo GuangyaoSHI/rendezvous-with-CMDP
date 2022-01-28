@@ -7,10 +7,15 @@ Created on Wed Dec 15 12:16:33 2021
 
 from mcts import MctsSim
 from simulator import State
-lambda_ = 10
-c_hat = 0.6
-root = State()
+import csv
 
-mcts = MctsSim(lambda_, c_hat, root)
-RC = mcts.roll_out(root, 0)
-print(RC)
+file = open("Coords.csv")
+csvreader = csv.reader(file)
+header = next(csvreader)
+print(header)
+
+rows = []
+for row in csvreader:
+    rows.append(row)
+print(rows)
+file.close()
