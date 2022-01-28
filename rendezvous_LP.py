@@ -180,7 +180,7 @@ def transition_prob(s_a_s):
 
 def reward(s_a):
     state = tuple(list(s_a)[0:6])
-    action = s_a[7]
+    action = s_a[6]
     
     if state == state_f:
         assert action == 'l', "should transit to loop state"
