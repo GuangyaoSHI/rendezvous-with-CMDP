@@ -141,9 +141,10 @@ G = nx.DiGraph()
 for state in P_s_a:
     G.add_node(state, action=list(P_s_a[state].keys()))
     for action in P_s_a[state]:
+        G.add_edge(state, state+(action,))
         for next_state in P_s_a[state][action]:
             assert next_state in P_s_a
-            G.add_edge(state, next_state, action=action, prob=P_s_a[state][action][next_state])
+            G.add_edge(state+(action,), next_state, action=action, prob=P_s_a[state][action][next_state])
 
 # Saving the state-transition graph:
 with open('state_transition_graph.obj', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -268,7 +269,7 @@ def cost(s_a):
     return C
 
 
-threshold = 0.1
+threshold = 0.01
 model = gp.Model('LP_CMDP')
 
 #indics for variables
@@ -305,12 +306,19 @@ for state in P_s_a:
     # for s_a in indices:
     #     s_a_s = s_a + state
     #     rhs += rho[s_a] * transition_prob(s_a_s)
-    for s in G.predecessors(state):
-        action = G.edges[s, state]['action']
-        s_a = s + (action,)
-        s_a_s = s + (action,) + state
-        rhs += rho[s_a] * transition_prob(s_a_s)
-    
+    # for s in G.predecessors(state):
+    #     action = G.edges[s, state]['action']
+    #     s_a = s + (action,)
+    #     s_a_s = s + (action,) + state
+    #     rhs += rho[s_a] * transition_prob(s_a_s)
+    s_a_nodes = []
+    for s_a in G.predecessors(state):
+        assert len(s_a) == 7
+        if s_a not in s_a_nodes:
+            s_a_nodes.append(s_a)
+            s_a_s = s_a + state
+            rhs += rho[s_a] * transition_prob(s_a_s)
+        
     if state == state_init:
         print('initial state delta function')
         rhs += 1

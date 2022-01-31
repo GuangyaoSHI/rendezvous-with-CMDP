@@ -41,14 +41,15 @@ UAV_state = (state[0], state[1])
 UGV_state = (state[2], state[3])
 energy_state = state[4]/100*rendezvous.battery
 UGV_task_node = state[5]
-traces = [state]
+state_traces = [state]
+action_traces = []
 
 while (UAV_state != UAV_goal and state != state_f):
     actions = []
     probs = []
     probs_uniform = []
     p = 0
-    for action in G.nodes[state]['action']:
+    for action in P_s_a[state]:
         actions.append(action)
         s_a = state + (action,)
         probs.append(policy[s_a])
@@ -62,13 +63,17 @@ while (UAV_state != UAV_goal and state != state_f):
         if random_num <= probs_uniform[i]:
             break
     action = actions[i]
-    next_states = []
-    for neighbor in G.neighbors(state):
-        if G.edges[state, neighbor]['action'] == action:
-            next_states.append(neighbor)
+    action_traces.append(action)
+    # next_states = []
+    # for neighbor in G.neighbors(state):
+    #     print("neighbor is {} action is {}".format(neighbor, G.edges[state, neighbor]['action']))
+    #     if G.edges[state, neighbor]['action'] == action:
+    #         next_states.append(neighbor)
     
-    next_state = random.sample(next_states, 1)[0]
-    traces.append(next_state)
+    
+    # Todo: it shouldn't be uniform sampling
+    next_state = random.sample(list(P_s_a[state][action].keys()), 1)[0]
+    state_traces.append(next_state)
     state = next_state
     UAV_state = (state[0], state[1])
 
@@ -90,5 +95,23 @@ while (UAV_state != UAV_goal and state != state_f):
     
     # # compute state in CMDP
     # state = UAV_state + UGV_state + (int(energy_state/rendezvous.battery*100), )+(UGV_task_node, )
-        
+
+UAV_traces = []
+UGV_traces = []
+battery_traces = []
+for i in range(len(action_traces)):
+    UAV_traces.append((state_traces[i][0], state_traces[i][1]))
+    UGV_traces.append((state_traces[i][2], state_traces[i][3]))
+    battery_traces.append(state_traces[i][4])
+    UAV_traces.append(action_traces[i])
+
+UAV_traces.append((state_traces[i+1][0], state_traces[i+1][1]))
+UGV_traces.append((state_traces[i+1][2], state_traces[i+1][3]))  
+battery_traces.append(state_traces[i+1][4])
+
+print("UAV traces: {}".format(UAV_traces))
+print("UGV traces: {}".format(UGV_traces))  
+print("battery traces: {}".format(battery_traces))
+    
+       
     
