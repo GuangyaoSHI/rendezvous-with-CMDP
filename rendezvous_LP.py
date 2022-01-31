@@ -145,6 +145,10 @@ for state in P_s_a:
             assert next_state in P_s_a
             G.add_edge(state, next_state, action=action, prob=P_s_a[state][action][next_state])
 
+# Saving the state-transition graph:
+with open('state_transition_graph.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    pickle.dump(G, f)
+
 # for node in G:
 #     if node not in P_s_a.keys():
 #         print(node)
@@ -346,6 +350,7 @@ with open('policy.obj', 'wb') as f:  # Python 3: open(..., 'wb')
     pickle.dump(policy, f)        
     
     
+# simulate the whole process
     
     
 

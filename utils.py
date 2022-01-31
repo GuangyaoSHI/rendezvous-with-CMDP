@@ -102,7 +102,7 @@ class Rendezvous():
             power_consumed = self.get_power_consumption_sample(self.UAV_task.edges[UAV_state, UAV_state_next]['dis'])
             battery_state_next = battery_state - power_consumed
             if self.display:
-                self.display_task_transition(UAV_state, UAV_state_next, UGV_state, UGV_state_next, battery_state, battery_state_next)
+                self.display_task_transition(UAV_state, UAV_state_next, UGV_state, UGV_state_next, int(battery_state/self.battery*100), int(battery_state_next/self.battery*100))
             # if battery_state_next < 0:
             #    print("out of battery")
             #    UAV_state_next = ('f', 'f')
@@ -141,7 +141,8 @@ class Rendezvous():
             if self.display:
                 self.display_rendezvous(rendezvous_state, UAV_state, UAV_state_next, 
                                     UGV_state, UGV_state_next, battery_state, 
-                                    self.battery - power_consumed2, battery_state - power_consumed1)
+                                   int((self.battery - power_consumed2)/self.battery*100), 
+                                   int((battery_state - power_consumed1)/self.battery*100))
             # UAV cannot rendezvous
             if battery_state_next < 0:
                 UAV_state_next = ('f', 'f')
@@ -244,7 +245,12 @@ class Rendezvous():
         return UGV_state_next, UGV_state_road_next, UGV_task_node_next
     
     def get_power_consumption_sample(self, distance):
-         return distance/self.power_measure + np.random.normal(self.mean, self.sigma)
+        stochastic_consumption = np.random.normal(self.mean, self.sigma)
+        if stochastic_consumption < -0.25:
+            stochastic_consumption = -0.25
+        if stochastic_consumption > 0.25:
+            stochastic_consumption = 0.25
+        return distance/self.power_measure + stochastic_consumption 
         
     def power_consumption(self, tgtV, duration):
         # return power distribution after taking action with SoC
@@ -319,13 +325,19 @@ class Rendezvous():
         UAV_state = (state[0], state[1])
         assert UAV_state in self.UAV_task, "UAV state is not in task"
         UGV_state = (state[2], state[3])
-        battery_state = state[-1]
+        battery_state = state[4]
         return UAV_state, UGV_state, battery_state
+    
     
     def display_task_transition(self, UAV_state_last, UAV_state_next, UGV_state_last, UGV_state_next, battery_state_last, battery_state_next):
         # plot road network
         fig, ax = plt.subplots()
-        line_road, = ax.plot([0, 30*60*5*2.5], [0, 0], color='k', alpha=0.2)
+        for edge in self.road_network_.edges:
+            node1 = edge[0]
+            node2 = edge[1]
+            x = [node1[0], node2[0]]
+            y = [node1[1], node2[1]]
+            line_road, = ax.plot(x, y, marker='o',color='k', alpha=0.2)
         line_road.set_label('road network')
         
         # plot UAV task
@@ -353,14 +365,18 @@ class Rendezvous():
         ax.legend()
         #fig.savefig("task_transition.pdf")
         
-    
-    
     def display_rendezvous(self, rendezvous_node, UAV_state_last, UAV_state_next, 
                            UGV_state_last, UGV_state_next, battery_state_last, 
                            battery_state_next, battery_rendezvous):
         # plot road network
         fig, ax = plt.subplots()
-        line_road, = ax.plot([0, 30*60*5*2.5], [0, 0], color='k', alpha=0.2)
+        for edge in self.road_network_.edges:
+            node1 = edge[0]
+            node2 = edge[1]
+            x = [node1[0], node2[0]]
+            y = [node1[1], node2[1]]
+            line_road, = ax.plot(x, y, marker='o',color='k', alpha=0.2)
+        
         line_road.set_label('road network')
         # plot UAV task
         for edge in self.UAV_task.edges:
@@ -397,7 +413,8 @@ class Rendezvous():
                       str((int(rendezvous_node[0]), int(rendezvous_node[1])))+
                       " to "+str((int(UGV_state_next[0]), int(UGV_state_next[1]))))
         #fig.savefig("rendezvous.pdf")
-        
+    
+    
 
 def generate_road_network():
     # it shouldn't be a directed graph
