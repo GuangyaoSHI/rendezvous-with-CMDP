@@ -145,9 +145,15 @@ for state in P_s_a:
             assert next_state in P_s_a
             G.add_edge(state, next_state, action=action, prob=P_s_a[state][action][next_state])
 
-for node in G:
-    if node not in P_s_a.keys():
-        print(node)
+# for node in G:
+#     if node not in P_s_a.keys():
+#         print(node)
+
+state = (3, 0, 3, 0, 99, 3)
+neighbors = G.neighbors(state)
+for neighbor in neighbors:
+    print([state, neighbor])
+    print(G.edges[state, neighbor])
 
 i = 1        
 for state in P_s_a:
@@ -211,7 +217,24 @@ def reward(s_a):
         assert action == 'l', "should transit to loop state"
         return 0
     
-    return -1
+    if action == 'v_be':
+        return -1
+    
+    if action == 'v_be_be':
+        uav_state = state[0:2]
+        uav_state_next = list(UAV_task.neighbors(uav_state))[0]
+        ugv_state = state[2:4]
+        ugv_road_state = ugv_state + ugv_state
+        ugv_task_node = state[-1]
+        v1 = action[0:4]
+        v2 = 'v'+action[4:]
+        uav_state_next = list(UAV_task.neighbors(uav_state))[0]
+        rendezvous_state, t1, t2 = rendezvous.rendezvous_point(uav_state, uav_state_next, ugv_state, 
+                                                               ugv_road_state, ugv_task_node, 
+                                                               rendezvous.velocity_uav[v1], 
+                                                                               rendezvous.velocity_uav[v2])
+        return -(t1+t2)
+    
 
 
 def cost(s_a):
@@ -248,8 +271,8 @@ model = gp.Model('LP_CMDP')
 indices = []
 
 for state in P_s_a:
-    if state == state_l:
-        continue
+    # if state == state_l:
+    #     continue
     for action in P_s_a[state]:
         indices.append(state + (action,))
 
@@ -304,8 +327,8 @@ for s_a in indices:
     state = tuple(list(s_a)[0:6])
     actions = list(P_s_a[state].keys())
     deno = rho[s_a].x
-    if rho[s_a].x > 0:
-        print("s_a: {} rho_s_a: {}".format(s_a, rho[s_a].x ))
+    # if rho[s_a].x > 0:
+        #print("s_a: {} rho_s_a: {}".format(s_a, rho[s_a].x ))
     num = 0
     for action in actions:
         num += rho[state+(action, )].x
@@ -314,6 +337,8 @@ for s_a in indices:
         policy[s_a] = 0
     else:
         policy[s_a] = deno/num
+        if policy[s_a]>0:
+            print("s_a: {} pi_s_a: {}".format(s_a, policy[s_a]))
     #print("Optimal Prob of choosing action {} at state {} is {}".format((s_a[2], s_a[3]), state, deno/num))
         
 # Saving the objects:
