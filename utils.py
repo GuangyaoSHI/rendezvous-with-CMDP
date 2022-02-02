@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 from scipy.stats import weibull_min
 import copy
 import sys
+import csv
+import pickle
 
 class Rendezvous():
     def __init__(self, UAV_task, UGV_task, road_network, battery):
@@ -30,16 +32,16 @@ class Rendezvous():
         self.road_network = road_network 
         self.road_network_ = nx.Graph(road_network)
         # uav velocity
-        self.velocity_uav = {'v_be' : 1, 'v_br' : 1}
+        self.velocity_uav = {'v_be' : 9.8, 'v_br' : 14}
         
         # ugv velocity
-        self.velocity_ugv = 1
+        self.velocity_ugv = 4.5
 
         self.check_UGV_task()
         
         # time for changing battery
         # Todo: choose a proper value 
-        self.charging_time = 0
+        self.charging_time = 120
         
         # total battery
         # Todo:choose a proper value 
@@ -265,9 +267,46 @@ class Rendezvous():
         P = self.b[0] + self.b[1]*V + self.b[2]*V**2 + self.b[3]*V**3 + self.b[4]*W + self.b[5]*V*W
         return P*duration
     
-    def get_power_consumption_distribution(self, distance):
+    def get_power_consumption_distribution(self, tgtV):
+        # return power distribution when the UAV flies at a target velocity
+        stats = {}
+        num_of_samples = 0
+        samples = 10000
+        for i in range(100, 300, 10):
+            stats[(i, i+10)] = 0
+        for i in range(samples):
+            # sample weight using random normal distribution of weight
+            W = self.stdW*np.random.randn() + self.meanW
+            # solve for true airspeed by adding in weibull wind distribution with
+            # equally random heading direction of wind
+            # simplifying assumption is that only wind tangential to UAS heading affects power
+            disturbance = weibull_min.rvs(c=self.aG, loc=0, scale=self.bG)
+            V = abs(tgtV + disturbance*np.math.cos(-self.wind_heading))
+            P = self.b[0] + self.b[1]*V + self.b[2]*V**2 + self.b[3]*V**3 + self.b[4]*W + self.b[5]*V*W
+            for interval in stats:
+                if interval[0] <= P < interval[1]:
+                    stats[interval] += 1
+                    num_of_samples += 1
+                    break
+        if num_of_samples != samples:
+            print("some samples are out of range")
         
-        return
+        for interval in stats:
+            stats[interval] = stats[interval] / num_of_samples
+        # https://www.tutorialspoint.com/matplotlib/matplotlib_bar_plot.htm
+        fig = plt.figure()
+        ax = fig.add_axes([0, 0, 1, 1])
+        keys = list(stats.keys())
+        keys = [str(key) for key in keys]
+        ax.barh(keys, list(stats.values()))
+        #plt.xticks(rotation='vertical')
+        ax.set_title("power consumption distribution for velocity "+str(tgtV))
+        
+        # Saving the state-transition graph:
+        with open('P_'+str(tgtV)+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+            pickle.dump(stats, f)
+        return stats
+    
     
     def rendezvous_point(self, UAV_state, UAV_state_next, UGV_state, UGV_road_state, UGV_task_node, vel_rdv, vel_sep):
         # return rendezvous point
@@ -418,18 +457,42 @@ class Rendezvous():
 
 def generate_road_network():
     # it shouldn't be a directed graph
-    G = nx.Graph()
+    #G = nx.Graph()
     # # a simple straight line network
     # for i in range(1, 20):
     #     dis = np.linalg.norm(np.array(((i-1)*5+3731, 0))-np.array((i*5+3731, 0)))
     #     G.add_edge(((i-1)*5+3731, 0), (i*5+3731, 0), dis=dis)  
  
-    nodes = [(3,3),(3,2),(3,1),(3,0),(3,-1),(4,-1),(5,-1),(6,-1),(7,-1),(8,-1),(9, -1),(10,-1)]
-    for i in range(len(nodes)-1):
-        G.add_edge(nodes[i], nodes[i+1], dis=1)
-    pos = dict(zip(G.nodes, G.nodes))
-    nx.draw(G, pos=pos)
-    return G
+    # nodes = [(3,3),(3,2),(3,1),(3,0),(3,-1),(4,-1),(5,-1),(6,-1),(7,-1),(8,-1),(9, -1),(10,-1)]
+    # for i in range(len(nodes)-1):
+    #     G.add_edge(nodes[i], nodes[i+1], dis=1)
+    # pos = dict(zip(G.nodes, G.nodes))
+    # nx.draw(G, pos=pos)
+    file = open("Coords.csv")
+    csvreader = csv.reader(file)
+    header = next(csvreader)
+    print(header)
+
+    rows = []
+    for row in csvreader:
+        rows.append(row)
+    print(rows)
+    
+    road_network = nx.Graph()
+    for i in range(7, len(rows)-1):
+        node1 = (float(rows[i][1]), float(rows[i][2]))
+        node2 = (float(rows[i+1][1]), float(rows[i+1][2]))
+        dis = np.linalg.norm(np.array(node1)-np.array(node2))
+        road_network.add_edge(node1, node2, dis=dis)
+    
+    ((6.29, 11.14), (1.0, 13.4)) in road_network.edges
+    road_network.remove_edge((6.29, 11.14), (1.0, 13.4))
+    ((6.29, 11.14), (17.5, 1.5)) in road_network.edges
+    road_network.remove_edge((6.29, 11.14), (17.5, 1.5))
+    
+    pos = dict(zip(road_network.nodes, road_network.nodes))
+    nx.draw(road_network, pos=pos, alpha=1, node_color='r', node_size=2)
+    return road_network
 
 def generate_UAV_task():
     # angle = 70 / 180 * np.pi
@@ -460,11 +523,15 @@ def generate_UAV_task():
     #         curr_node = next_node
     
     G = nx.DiGraph() 
-    nodes = [(i, 0) for i in range(8)]   
+    #nodes = [(i, 0) for i in range(8)]   
+    nodes = [(6.8, 19.1), (5.83, 16.495), (7.35, 14.48), (4.44, 13.993), (1, 13.4),
+             (2.69, 10.62), (5.7, 11.45), (10, 12), (9.72, 9.2), (11.243, 7.518),
+             (12.507, 6.27), (14.076, 4.845), (13.61, 1.23), (16.322, 3.549),
+             (17.5, 1.5)]
     for i in range(len(nodes)-1):
         G.add_edge(nodes[i], nodes[i+1], dis=1)
     pos = dict(zip(G.nodes, G.nodes))
-    nx.draw(G, pos=pos, alpha=0.5, node_color='r', node_size=80)
+    nx.draw(G, pos=pos, alpha=0.5, node_color='r', node_size=8)
     G.graph['dis_per_energy'] = 1
     return G
 
@@ -486,16 +553,17 @@ def generate_UGV_task():
         # G.nodes[node_index]['pos'] = (19*5+3731, 0)
         # G.nodes[node_index+1]['pos'] = ((1-1)*5*60+3731, 0)
         # node_index += 1
-    nodes = [(3,3),(3,2),(3,1),(3,0),(3,-1),(4,-1),(5,-1),(6,-1),(7,-1),(8,-1),(9, -1),(10,-1)]
+    #nodes = [(3,3),(3,2),(3,1),(3,0),(3,-1),(4,-1),(5,-1),(6,-1),(7,-1),(8,-1),(9, -1),(10,-1)]
+    nodes = [(6.8, 19.1), (5.46, 15.32), (4.04, 13.13), (6.29, 11.14), (10.4, 8.35),
+             (14.523, 4.53), (17.5, 1.5)] 
     for node_index in range(len(nodes)-1):
         G.add_edge(node_index, node_index+1, dis=1)
         G.nodes[node_index]['pos'] = nodes[node_index]
         G.nodes[node_index+1]['pos'] = nodes[node_index+1]
     G.add_edge(node_index+1, 0, dis=7)    
     G.graph['UGV_goal'] = node_index+1
-    G.graph['UGV_task_state'] = [(3,3),(3,2)]
     pos = nx.get_node_attributes(G,'pos')
-    nx.draw(G, pos=pos)
+    nx.draw(G, pos=pos,alpha=0.5, node_color='r', node_size=8)
     return G
 
 def plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state, ):
