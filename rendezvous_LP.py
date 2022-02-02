@@ -19,11 +19,30 @@ actions = ['v_be', 'v_be_be']
 rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=7)
 rendezvous.display = False
 
+# get power consumption distribution:
+# best endurance velocity
+stats = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav['v_be'])
+powers_be = []
+probs_be = []
+for interval in stats:
+    powers_be.append((interval[0]+interval[1])/2)
+    probs_be.append(stats[interval])
+
+# best range velocity
+stats = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav['v_br'])
+powers_br = []
+probs_br = []
+for interval in stats:
+    powers_br.append((interval[0]+interval[1])/2)
+    probs_br.append(stats[interval])
+
+
+
 # transition probability
 P_s_a = {}
 
-probs = [2.27e-2, 13.6e-2, 34.13e-2, 34.13e-2, 13.6e-2, 2.27e-2]
-values = [-0.25, -0.15, -0.05, 0.05, 0.15, 0.25]
+#probs = [2.27e-2, 13.6e-2, 34.13e-2, 34.13e-2, 13.6e-2, 2.27e-2]
+#values = [-0.25, -0.15, -0.05, 0.05, 0.15, 0.25]
 
 state_f = ('f', 'f', 'f', 'f', 'f', 'f')
 state_l = ('l', 'l', 'l', 'l', 'l', 'l')
@@ -50,26 +69,31 @@ for uav_state in UAV_task.nodes:
                 
                 for action in actions:
                     if action == 'v_be':  
-                        energy_states = list(energy_state - np.array(values)-1)
-                        energy_distribution = dict(zip(energy_states, probs))
-                        assert len(energy_states) == 6
+                        # UAV choose to go to next task node with best endurance velocity
+                        descendants = list(UAV_task.neighbors(uav_state))
+                        assert len(descendants) == 1
+                        UAV_state_next = descendants[0]
+                        duration = UAV_task.edges[uav_state, UAV_state_next]['dis'] / rendezvous.velocity_uav[action]
+                        
+                        # compute the energy distribution
+                        energy_states = list(energy_state-np.array(powers_be)*duration)
+                        energy_distribution = dict(zip(energy_states, probs_be))
                         
                         UGV_road_state = ugv_state + ugv_state
-                        UAV_state, UGV_state, UGV_road_state, UGV_task_node, battery_state = rendezvous.transit(state_physical, action, UGV_road_state, ugv_task_node)
-                        
+                        UGV_state_next, UGV_road_state_next, UGV_task_node_next = rendezvous.UGV_transit(ugv_state, UGV_road_state, ugv_task_node, duration)                        
                         # use discrete UGV_state by assigning UGV to one road state
-                        rs1 = np.linalg.norm(np.array(UGV_state)-np.array([UGV_road_state[0], UGV_road_state[1]]))
-                        rs2 = np.linalg.norm(np.array(UGV_state)-np.array([UGV_road_state[2], UGV_road_state[3]]))
+                        rs1 = np.linalg.norm(np.array(UGV_state_next)-np.array([UGV_road_state_next[0], UGV_road_state_next[1]]))
+                        rs2 = np.linalg.norm(np.array(UGV_state_next)-np.array([UGV_road_state_next[2], UGV_road_state_next[3]]))
                         if rs1<rs2:
-                            UGV_state = (UGV_road_state[0], UGV_road_state[1])
+                            UGV_state_next = (UGV_road_state_next[0], UGV_road_state_next[1])
                         else:
-                            UGV_state = (UGV_road_state[2], UGV_road_state[3])
+                            UGV_state_next = (UGV_road_state_next[2], UGV_road_state_next[3])
                             
                         for p_c in energy_states:
                             if p_c < 0:
                                 state_ = ('f', 'f', 'f', 'f', 'f', 'f')
                             else:
-                                state_ = UAV_state + UGV_state + (int(p_c/rendezvous.battery*100), )+(UGV_task_node,)
+                                state_ = UAV_state_next + UGV_state_next + (round(p_c/rendezvous.battery*100), )+(UGV_task_node_next,)
                             if state_ not in P_s_a[state][action]:
                                 P_s_a[state][action][state_] = energy_distribution[p_c]
                             else:
@@ -77,6 +101,11 @@ for uav_state in UAV_task.nodes:
                                 P_s_a[state][action][state_] += energy_distribution[p_c]
                         
                     if action == 'v_be_be':
+                        # compute UAV position after rendezvous
+                        descendants = list(UAV_task.neighbors(uav_state))
+                        assert len(descendants) == 1
+                        UAV_state_next = descendants[0]
+                        
                         ugv_road_state = ugv_state + ugv_state
                         v1 = action[0:4]
                         v2 = 'v'+action[4:]
@@ -89,17 +118,16 @@ for uav_state in UAV_task.nodes:
                         UGV_state_next, UGV_road_state_next, UGV_task_node_next = rendezvous.UGV_transit(rendezvous_state, rendezvous_road_state, ugv_task_node, t2)
                         
                         # use discrete UGV_state by assigning UGV to one road state
-                        rs1 = np.linalg.norm(np.array(UGV_state)-np.array([UGV_road_state[0], UGV_road_state[1]]))
-                        rs2 = np.linalg.norm(np.array(UGV_state)-np.array([UGV_road_state[2], UGV_road_state[3]]))
+                        rs1 = np.linalg.norm(np.array(UGV_state_next)-np.array([UGV_road_state_next[0], UGV_road_state_next[1]]))
+                        rs2 = np.linalg.norm(np.array(UGV_state_next)-np.array([UGV_road_state_next[2], UGV_road_state_next[3]]))
                         if rs1 < rs2:
-                            UGV_state = (UGV_road_state[0], UGV_road_state[1])
+                            UGV_state_next = (UGV_road_state_next[0], UGV_road_state_next[1])
                         else:
-                            UGV_state = (UGV_road_state[2], UGV_road_state[3])
+                            UGV_state_next = (UGV_road_state_next[2], UGV_road_state_next[3])
                         
-                        dis1 = np.linalg.norm(np.array(uav_state)-np.array(rendezvous_state))
-                        energy_states = list(energy_state - np.array(values)-dis1/rendezvous.power_measure)
-                        energy_distribution = dict(zip(energy_states, probs))
-                        assert len(energy_states) == 6
+                        # compute energy distribution after rendezvous
+                        energy_states = list(energy_state - np.array(powers_be)*t1)
+                        energy_distribution = dict(zip(energy_states, probs_be))
                         
                         failure_prob = 0
                         for p_c in energy_states:
@@ -113,14 +141,14 @@ for uav_state in UAV_task.nodes:
                         if failure_prob == 1:
                             continue
                         
-                        dis2 = np.linalg.norm(np.array(uav_state_next)-np.array(rendezvous_state))
-                        energy_states2 = list(rendezvous.battery - np.array(values)-dis2/rendezvous.power_measure)
-                        energy_distribution2 = dict(zip(energy_states2, probs))
+                        energy_states2 = list(rendezvous.battery - np.array(powers_be)*t2)
+                        #Todo: probs_be need to change if br is used
+                        energy_distribution2 = dict(zip(energy_states2, probs_be))
                         for p_c in energy_states2:
                             if p_c < 0:
                                 state_ = ('f', 'f', 'f', 'f', 'f', 'f')
                             else:
-                                state_ = UAV_state + UGV_state + (min(int(p_c/rendezvous.battery*100), 100), )+(UGV_task_node,)
+                                state_ = UAV_state_next + UGV_state_next + (min(round(p_c/rendezvous.battery*100), 100), )+(UGV_task_node,)
                             if state_ not in P_s_a[state][action]:
                                 P_s_a[state][action][state_] = energy_distribution2[p_c]*(1-failure_prob)
                             else:

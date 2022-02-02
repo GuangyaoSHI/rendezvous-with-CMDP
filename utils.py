@@ -271,7 +271,7 @@ class Rendezvous():
         # return power distribution when the UAV flies at a target velocity
         stats = {}
         num_of_samples = 0
-        samples = 10000
+        samples = 100000
         for i in range(100, 300, 10):
             stats[(i, i+10)] = 0
         for i in range(samples):
@@ -529,7 +529,8 @@ def generate_UAV_task():
              (12.507, 6.27), (14.076, 4.845), (13.61, 1.23), (16.322, 3.549),
              (17.5, 1.5)]
     for i in range(len(nodes)-1):
-        G.add_edge(nodes[i], nodes[i+1], dis=1)
+        dis = np.linalg.norm(np.array(nodes[i])-np.array(nodes[i+1]))
+        G.add_edge(nodes[i], nodes[i+1], dis=dis)
     pos = dict(zip(G.nodes, G.nodes))
     nx.draw(G, pos=pos, alpha=0.5, node_color='r', node_size=8)
     G.graph['dis_per_energy'] = 1

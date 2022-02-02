@@ -24,4 +24,4 @@ road_network = generate_road_network()
 actions = ['v_be', 'v_be_be']
 rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=7)
 
-rendezvous.get_power_consumption_distribution(9.8)
+stats = rendezvous.get_power_consumption_distribution(14)
