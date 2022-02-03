@@ -97,6 +97,7 @@ def expand_graph(state):
             energy_distribution = dict(zip(energy_states, probs_be))
             
             UGV_road_state = ugv_state + ugv_state
+            assert ugv_state in road_network.nodes
             UGV_state_next, UGV_road_state_next, UGV_task_node_next = rendezvous.UGV_transit(ugv_state, UGV_road_state, ugv_task_node, duration)                        
             # use discrete UGV_state by assigning UGV to one road state
             rs1 = np.linalg.norm(np.array(UGV_state_next)-np.array([UGV_road_state_next[0], UGV_road_state_next[1]]))
@@ -133,6 +134,7 @@ def expand_graph(state):
             UAV_state_next = descendants[0]
             
             ugv_road_state = ugv_state + ugv_state
+            assert ugv_state in road_network.nodes
             v1 = action[0:4]
             v2 = 'v'+action[4:]
             rendezvous_state, t1, t2 = rendezvous.rendezvous_point(uav_state, UAV_state_next, ugv_state, 
