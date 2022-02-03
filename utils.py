@@ -476,19 +476,19 @@ def generate_road_network():
     rows = []
     for row in csvreader:
         rows.append(row)
-    print(rows)
+    #print(rows)
     
     road_network = nx.Graph()
     for i in range(7, len(rows)-1):
-        node1 = (float(rows[i][1]), float(rows[i][2]))
-        node2 = (float(rows[i+1][1]), float(rows[i+1][2]))
+        node1 = (float(rows[i][1])*1e3, float(rows[i][2])*1e3)
+        node2 = (float(rows[i+1][1])*1e3, float(rows[i+1][2])*1e3)
         dis = np.linalg.norm(np.array(node1)-np.array(node2))
         road_network.add_edge(node1, node2, dis=dis)
     
-    ((6.29, 11.14), (1.0, 13.4)) in road_network.edges
-    road_network.remove_edge((6.29, 11.14), (1.0, 13.4))
-    ((6.29, 11.14), (17.5, 1.5)) in road_network.edges
-    road_network.remove_edge((6.29, 11.14), (17.5, 1.5))
+    ((6.29*1e3, 11.14*1e3), (1.0*1e3, 13.4*1e3)) in road_network.edges
+    road_network.remove_edge((6.29*1e3, 11.14*1e3), (1.0*1e3, 13.4*1e3))
+    ((6.29*1e3, 11.14*1e3), (17.5*1e3, 1.5*1e3)) in road_network.edges
+    road_network.remove_edge((6.29*1e3, 11.14*1e3), (17.5*1e3, 1.5*1e3))
     
     pos = dict(zip(road_network.nodes, road_network.nodes))
     nx.draw(road_network, pos=pos, alpha=1, node_color='r', node_size=2)
@@ -524,10 +524,10 @@ def generate_UAV_task():
     
     G = nx.DiGraph() 
     #nodes = [(i, 0) for i in range(8)]   
-    nodes = [(6.8, 19.1), (5.83, 16.495), (7.35, 14.48), (4.44, 13.993), (1, 13.4),
-             (2.69, 10.62), (5.7, 11.45), (10, 12), (9.72, 9.2), (11.243, 7.518),
-             (12.507, 6.27), (14.076, 4.845), (13.61, 1.23), (16.322, 3.549),
-             (17.5, 1.5)]
+    nodes = [(6.8*1e3, 19.1*1e3), (5.83*1e3, 16.495*1e3), (7.35*1e3, 14.48*1e3), (4.44*1e3, 13.993*1e3), (1*1e3, 13.4*1e3),
+             (2.69*1e3, 10.62*1e3), (5.7*1e3, 11.45*1e3), (10*1e3, 12*1e3), (9.72*1e3, 9.2*1e3), (11.243*1e3, 7.518*1e3),
+             (12.507*1e3, 6.27*1e3), (14.076*1e3, 4.845*1e3), (13.61*1e3, 1.23*1e3), (16.322*1e3, 3.549*1e3),
+             (17.5*1e3, 1.5*1e3)]
     for i in range(len(nodes)-1):
         dis = np.linalg.norm(np.array(nodes[i])-np.array(nodes[i+1]))
         G.add_edge(nodes[i], nodes[i+1], dis=dis)
@@ -555,8 +555,8 @@ def generate_UGV_task():
         # G.nodes[node_index+1]['pos'] = ((1-1)*5*60+3731, 0)
         # node_index += 1
     #nodes = [(3,3),(3,2),(3,1),(3,0),(3,-1),(4,-1),(5,-1),(6,-1),(7,-1),(8,-1),(9, -1),(10,-1)]
-    nodes = [(6.8, 19.1), (5.46, 15.32), (4.04, 13.13), (6.29, 11.14), (10.4, 8.35),
-             (14.523, 4.53), (17.5, 1.5)] 
+    nodes = [(6.8*1e3, 19.1*1e3), (5.46*1e3, 15.32*1e3), (4.04*1e3, 13.13*1e3), (6.29*1e3, 11.14*1e3), (10.4*1e3, 8.35*1e3),
+             (14.523*1e3, 4.53*1e3), (17.5*1e3, 1.5*1e3)] 
     for node_index in range(len(nodes)-1):
         G.add_edge(node_index, node_index+1, dis=1)
         G.nodes[node_index]['pos'] = nodes[node_index]

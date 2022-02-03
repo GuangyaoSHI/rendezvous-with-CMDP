@@ -1,9 +1,10 @@
 filename = 'Coords.csv';
-%M = readmatrix(filename)
-M = Coords;
+M = readmatrix(filename)
+%M = Coords;
 M(8,:)
 X = M(8:end, 2);
 Y = M(8:end, 3);
+figure(1)
 plot(X, Y, '*-')
 axis equal
 

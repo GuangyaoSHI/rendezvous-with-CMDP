@@ -16,7 +16,7 @@ UAV_goal = UAV_goal[0]
 UGV_task = generate_UGV_task()
 road_network = generate_road_network()
 actions = ['v_be', 'v_be_be']
-rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=7)
+rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
 rendezvous.display = False
 
 # get power consumption distribution:
@@ -46,7 +46,7 @@ P_s_a = {}
 
 state_f = ('f', 'f', 'f', 'f', 'f', 'f')
 state_l = ('l', 'l', 'l', 'l', 'l', 'l')
-state_init = (0, 0, 3, 3, 100, 0)
+state_init = (6.8e3, 19.1e3, 6.8e3, 19.1e3, 100, 0)
 
 for uav_state in UAV_task.nodes:
     for ugv_state in road_network.nodes:
@@ -55,7 +55,7 @@ for uav_state in UAV_task.nodes:
             for ugv_task_node in UGV_task.nodes:
                 # power state
                 energy_state = battery/100*rendezvous.battery
-                state_physical = uav_state + ugv_state + (energy_state, ) + (ugv_task_node, )
+                #state_physical = uav_state + ugv_state + (energy_state, ) + (ugv_task_node, )
                 state = uav_state + ugv_state + (battery, ) + (ugv_task_node, )
                 P_s_a[state] = {}
                  
@@ -109,8 +109,7 @@ for uav_state in UAV_task.nodes:
                         ugv_road_state = ugv_state + ugv_state
                         v1 = action[0:4]
                         v2 = 'v'+action[4:]
-                        uav_state_next = list(UAV_task.neighbors(uav_state))[0]
-                        rendezvous_state, t1, t2 = rendezvous.rendezvous_point(uav_state, uav_state_next, ugv_state, 
+                        rendezvous_state, t1, t2 = rendezvous.rendezvous_point(uav_state, UAV_state_next, ugv_state, 
                                                                                ugv_road_state, ugv_task_node, 
                                                                                rendezvous.velocity_uav[v1], 
                                                                                rendezvous.velocity_uav[v2])
@@ -148,7 +147,7 @@ for uav_state in UAV_task.nodes:
                             if p_c < 0:
                                 state_ = ('f', 'f', 'f', 'f', 'f', 'f')
                             else:
-                                state_ = UAV_state_next + UGV_state_next + (min(round(p_c/rendezvous.battery*100), 100), )+(UGV_task_node,)
+                                state_ = UAV_state_next + UGV_state_next + (min(round(p_c/rendezvous.battery*100), 100), )+(UGV_task_node_next,)
                             if state_ not in P_s_a[state][action]:
                                 P_s_a[state][action][state_] = energy_distribution2[p_c]*(1-failure_prob)
                             else:
