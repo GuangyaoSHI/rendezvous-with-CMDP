@@ -7,6 +7,9 @@ import gurobipy as gp
 from gurobipy import GRB
 from utils import *
 import pickle
+import logging
+
+logger = logging.getLogger(__name__) # Set up logger
 
 # generate state transition function
 UAV_task = generate_UAV_task()
@@ -15,6 +18,7 @@ UAV_goal = UAV_goal[0]
 # UGV_task is a directed graph. Node name is an index
 UGV_task = generate_UGV_task()
 road_network = generate_road_network()
+
 actions = ['v_be', 'v_be_be']
 rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
 rendezvous.display = False
@@ -29,29 +33,32 @@ for interval in stats:
     probs_be.append(stats[interval])
 
 # best range velocity
-stats = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav['v_br'])
-powers_br = []
-probs_br = []
-for interval in stats:
-    powers_br.append((interval[0]+interval[1])/2)
-    probs_br.append(stats[interval])
+# stats = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav['v_br'])
+# powers_br = []
+# probs_br = []
+# for interval in stats:
+#     powers_br.append((interval[0]+interval[1])/2)
+#     probs_br.append(stats[interval])
 
 
 
 # transition probability
 P_s_a = {}
 
+# battery_interval 
+battery_interval = 4
+
 #probs = [2.27e-2, 13.6e-2, 34.13e-2, 34.13e-2, 13.6e-2, 2.27e-2]
 #values = [-0.25, -0.15, -0.05, 0.05, 0.15, 0.25]
 
 state_f = ('f', 'f', 'f', 'f', 'f', 'f')
 state_l = ('l', 'l', 'l', 'l', 'l', 'l')
-state_init = (6.8e3, 19.1e3, 6.8e3, 19.1e3, 100, 0)
+state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
 
 for uav_state in UAV_task.nodes:
     print("uav state {}".format(uav_state))
     for ugv_state in road_network.nodes:
-        for battery in range(0, 101):
+        for battery in range(0, 101, battery_interval):
             # Todo: different node may represent the same node, this can cause some problem
             for ugv_task_node in UGV_task.nodes:
                 # power state
@@ -94,7 +101,15 @@ for uav_state in UAV_task.nodes:
                             if p_c < 0:
                                 state_ = ('f', 'f', 'f', 'f', 'f', 'f')
                             else:
-                                state_ = UAV_state_next + UGV_state_next + (round(p_c/rendezvous.battery*100), )+(UGV_task_node_next,)
+                                soc = round(p_c/rendezvous.battery*100)
+                                temp = soc%battery_interval
+                                if temp >= (battery_interval / 2):
+                                    soc = soc - temp + battery_interval
+                                    assert soc%battery_interval == 0
+                                else:
+                                    soc = soc - temp
+                                    assert soc%battery_interval == 0
+                                state_ = UAV_state_next + UGV_state_next + (soc, )+(UGV_task_node_next,)
                             if state_ not in P_s_a[state][action]:
                                 P_s_a[state][action][state_] = energy_distribution[p_c]
                             else:
@@ -148,7 +163,18 @@ for uav_state in UAV_task.nodes:
                             if p_c < 0:
                                 state_ = ('f', 'f', 'f', 'f', 'f', 'f')
                             else:
-                                state_ = UAV_state_next + UGV_state_next + (min(round(p_c/rendezvous.battery*100), 100), )+(UGV_task_node_next,)
+                                soc = min(round(p_c/rendezvous.battery*100), 100)
+                                temp = soc%battery_interval
+                                if temp >= (battery_interval / 2):
+                                    soc = soc - temp + battery_interval
+                                    assert soc%battery_interval == 0
+                                    assert soc >= 0
+                                else:
+                                    soc = soc - temp
+                                    assert soc%battery_interval == 0
+                                    assert soc >= 0
+                                    
+                                state_ = UAV_state_next + UGV_state_next + (soc, )+(UGV_task_node_next,)
                             if state_ not in P_s_a[state][action]:
                                 P_s_a[state][action][state_] = energy_distribution2[p_c]*(1-failure_prob)
                             else:
@@ -168,14 +194,14 @@ P_s_a[state_l][action][state_l] = 1
 
 
 # Getting back the objects:
-P_s_a = {}
-files = ['P_s_a_0-10', 'P_s_a_11-20', 'P_s_a_21-30', 'P_s_a_31-40', 'P_s_a_41-50',
-         'P_s_a_51-60', 'P_s_a_61-70', 'P_s_a_71-80', 'P_s_a_81-90', 'P_s_a_91-100']    
-for file in files:
-    filename = file+'.obj'
-    with open(filename, 'rb') as f:  # Python 3: open(..., 'rb')
-        P_s_a__ = pickle.load(f)
-    P_s_a = {**P_s_a, **P_s_a__}
+# P_s_a = {}
+# files = ['P_s_a_0-10', 'P_s_a_11-20', 'P_s_a_21-30', 'P_s_a_31-40', 'P_s_a_41-50',
+#          'P_s_a_51-60', 'P_s_a_61-70', 'P_s_a_71-80', 'P_s_a_81-90', 'P_s_a_91-100']    
+# for file in files:
+#     filename = file+'.obj'
+#     with open(filename, 'rb') as f:  # Python 3: open(..., 'rb')
+#         P_s_a__ = pickle.load(f)
+#     P_s_a = {**P_s_a, **P_s_a__}
 
 # Saving the state-transition graph:
 with open('P_s_a.obj', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -316,7 +342,7 @@ def cost(s_a):
     return C
 
 
-threshold = 0.01
+threshold = 0.1
 model = gp.Model('LP_CMDP')
 
 #indics for variables
@@ -329,19 +355,21 @@ for state in P_s_a:
         indices.append(state + (action,))
 
 # add Non-negative continuous variables that lies between 0 and 1        
-rho = model.addVars(indices, lb=0, ub=1, vtype=GRB.CONTINUOUS, name='rho')
+rho = model.addVars(indices, lb=0,  vtype=GRB.CONTINUOUS,  name='rho')
+model.addConstrs((rho[s_a] >=0 for s_a in indices), name='non-negative-ctrs')
 
 # add constraints 
 # cost constraints
 C = 0
 for s_a in indices:
-    if cost(s_a)>0:
-        print("s_a {} cost is {}".format(s_a, cost(s_a)))
+    # if cost(s_a)>0:
+    #     print("s_a {} cost is {}".format(s_a, cost(s_a)))
     C += rho[s_a] * cost(s_a)
-cost_ctrs =  model.addConstr(C <= threshold, name = 'cost_ctrs')    
+cost_ctrs =  model.addConstr(C <= threshold, name='cost_ctrs')    
 
-
+print("start to add equality constraint")
 for state in P_s_a:
+    
     if state == state_l:
         continue
     lhs = 0
@@ -353,26 +381,26 @@ for state in P_s_a:
     # for s_a in indices:
     #     s_a_s = s_a + state
     #     rhs += rho[s_a] * transition_prob(s_a_s)
-    # for s in G.predecessors(state):
-    #     action = G.edges[s, state]['action']
-    #     s_a = s + (action,)
-    #     s_a_s = s + (action,) + state
-    #     rhs += rho[s_a] * transition_prob(s_a_s)
-    s_a_nodes = []
+
+    #s_a_nodes = []
     for s_a in G.predecessors(state):
         assert len(s_a) == 7
-        if s_a not in s_a_nodes:
-            s_a_nodes.append(s_a)
-            s_a_s = s_a + state
-            rhs += rho[s_a] * transition_prob(s_a_s)
+        #if s_a not in s_a_nodes:
+        #s_a_nodes.append(s_a)
+        s_a_s = s_a + state
+        rhs += rho[s_a] * transition_prob(s_a_s)
         
+    
     if state == state_init:
         print('initial state delta function')
         rhs += 1
     
     model.addConstr(lhs == rhs, name = str(state))
+    model.update()
+    #print("equality constraint for state {}".format(state))
+    logger.info("just added constraint %s" % (lhs == rhs))
 
-model.addConstrs((rho[s_a] >=0 for s_a in indices), name='non-negative-ctrs')
+
     
 obj = 0
 for s_a in indices:
@@ -390,8 +418,13 @@ for s_a in indices:
         #print("s_a: {} rho_s_a: {}".format(s_a, rho[s_a].x ))
     num = 0
     for action in actions:
+        #assert rho[state+(action, )].x >= 0
         num += rho[state+(action, )].x
+        if rho[state+(action, )].x < 0:
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print(rho[state+(action, )].x)
     
+    assert num >= deno
     if num == 0:
         policy[s_a] = 0
     else:

@@ -128,7 +128,7 @@ class Rendezvous():
             
             #Todo: compute the state of UGV after t2 and return
             #print("rendezvous state is {}".format(rendezvous_state))
-            assert rendezvous_state in self.road_network
+            assert rendezvous_state in self.road_network.nodes
             # since rendezvous_state is on road network, the following code should be fine
             rendezvous_road_state = rendezvous_state + rendezvous_state 
             UGV_state_next, UGV_road_state_next, UGV_task_node_next = self.UGV_transit(rendezvous_state, rendezvous_road_state, UGV_task_node, t2)
@@ -225,8 +225,8 @@ class Rendezvous():
             # shortest path length from source to this node
             # Todo: this is very inefficient 
             sp_dis = nx.shortest_path_length(self.road_network, source=path[node_index], target=state_before_stop, weight='dis')
-            dis -= sp_dis
-            if dis <= total_dis:
+            dis_ = dis - sp_dis
+            if dis_ <= total_dis:
                 break
             
         # recovering road network
@@ -239,7 +239,7 @@ class Rendezvous():
             vector =  np.array(next_road_state) - np.array(previous_road_state)
             vector = vector/np.linalg.norm(vector)
             #assert dis>= total_dis
-            UGV_state_next = tuple(np.array(previous_road_state)+(total_dis-sp_dis)*vector)
+            UGV_state_next = tuple(np.array(previous_road_state)+(total_dis-dis_)*vector)
         else:
             next_road_state = path[node_index]
             UGV_state_next = path[node_index]
@@ -344,7 +344,7 @@ class Rendezvous():
             dis2 = np.linalg.norm(np.array(UAV_state_next) - np.array(node))
             time1 = max(dis1/vel_rdv, 
                                   nx.shortest_path_length(self.road_network, source=UGV_state, 
-                                                          target=rendezvous_state, weight='dis')/self.velocity_ugv)
+                                                          target=node, weight='dis')/self.velocity_ugv)
             time2 = dis2/vel_sep
             time = time1 + time2 + self.charging_time
             if time < rendezvous_time:
@@ -479,20 +479,62 @@ def generate_road_network():
     #print(rows)
     
     road_network = nx.Graph()
+    downsample = 6
     for i in range(7, len(rows)-1):
-        node1 = (float(rows[i][1])*1e3, float(rows[i][2])*1e3)
-        node2 = (float(rows[i+1][1])*1e3, float(rows[i+1][2])*1e3)
+        node1 = (int(float(rows[i][1])*1e3), int(float(rows[i][2])*1e3))
+        node2 = (int(float(rows[i+1][1])*1e3), int(float(rows[i+1][2])*1e3))
         dis = np.linalg.norm(np.array(node1)-np.array(node2))
         road_network.add_edge(node1, node2, dis=dis)
     
-    ((6.29*1e3, 11.14*1e3), (1.0*1e3, 13.4*1e3)) in road_network.edges
-    road_network.remove_edge((6.29*1e3, 11.14*1e3), (1.0*1e3, 13.4*1e3))
-    ((6.29*1e3, 11.14*1e3), (17.5*1e3, 1.5*1e3)) in road_network.edges
-    road_network.remove_edge((6.29*1e3, 11.14*1e3), (17.5*1e3, 1.5*1e3))
+    if ((int(6.29*1e3), int(11.14*1e3)), (int(1.0*1e3), int(13.4*1e3))) in road_network.edges:
+        road_network.remove_edge((int(6.29*1e3), int(11.14*1e3)), (int(1.0*1e3), int(13.4*1e3)))
+    
+    if ((int(6.29*1e3), int(11.14*1e3)), (int(17.5*1e3), int(1.5*1e3))) in road_network.edges:
+        road_network.remove_edge((int(6.29*1e3), int(11.14*1e3)), (int(17.5*1e3), int(1.5*1e3)))
+    
+    # down sample the roadnetwork
+    G = nx.Graph()
+    sp = nx.shortest_path(road_network, (6290, 11140), (17500, 1500))
+    paths = []
+    for i in range(0, len(sp), downsample):
+        paths.append(sp[i])
+    if (17500, 1500) not in paths:
+        paths.append((17500, 1500))
+    for i in range(len(paths)-1):
+        node1 = paths[i]
+        node2 = paths[i+1]
+        dis = np.linalg.norm(np.array(node1)-np.array(node2))
+        G.add_edge(node1, node2, dis=dis)
+    
+    sp = nx.shortest_path(road_network, (6290, 11140), (1000, 13400))
+    paths = []
+    for i in range(0, len(sp), downsample):
+        paths.append(sp[i])
+    if (1000, 13400) not in paths:
+        paths.append((1000, 13400))
+    for i in range(len(paths)-1):
+        node1 = paths[i]
+        node2 = paths[i+1]
+        dis = np.linalg.norm(np.array(node1)-np.array(node2))
+        G.add_edge(node1, node2, dis=dis)
+    
+    sp = nx.shortest_path(road_network, (6290, 11140), (6800, 19100))
+    paths = []
+    for i in range(0, len(sp), downsample):
+        paths.append(sp[i])
+    if (6800, 19100) not in paths:
+        paths.append((6800, 19100))
+    for i in range(len(paths)-1):
+        node1 = paths[i]
+        node2 = paths[i+1]
+        dis = np.linalg.norm(np.array(node1)-np.array(node2))
+        G.add_edge(node1, node2, dis=dis)
+    
+    
     
     pos = dict(zip(road_network.nodes, road_network.nodes))
-    nx.draw(road_network, pos=pos, alpha=1, node_color='r', node_size=2)
-    return road_network
+    nx.draw(G, pos=pos, alpha=1, node_color='r', node_size=2)
+    return G
 
 def generate_UAV_task():
     # angle = 70 / 180 * np.pi
@@ -530,9 +572,9 @@ def generate_UAV_task():
              (17.5*1e3, 1.5*1e3)]
     for i in range(len(nodes)-1):
         dis = np.linalg.norm(np.array(nodes[i])-np.array(nodes[i+1]))
-        G.add_edge(nodes[i], nodes[i+1], dis=dis)
+        G.add_edge((int(nodes[i][0]), int(nodes[i][1])), (int(nodes[i+1][0]), int(nodes[i+1][1])), dis=dis)
     pos = dict(zip(G.nodes, G.nodes))
-    nx.draw(G, pos=pos, alpha=0.5, node_color='r', node_size=8)
+    nx.draw(G, pos=pos, alpha=0.5, node_color='b', node_size=8)
     G.graph['dis_per_energy'] = 1
     return G
 
@@ -555,16 +597,17 @@ def generate_UGV_task():
         # G.nodes[node_index+1]['pos'] = ((1-1)*5*60+3731, 0)
         # node_index += 1
     #nodes = [(3,3),(3,2),(3,1),(3,0),(3,-1),(4,-1),(5,-1),(6,-1),(7,-1),(8,-1),(9, -1),(10,-1)]
-    nodes = [(6.8*1e3, 19.1*1e3), (5.46*1e3, 15.32*1e3), (4.04*1e3, 13.13*1e3), (6.29*1e3, 11.14*1e3), (10.4*1e3, 8.35*1e3),
-             (14.523*1e3, 4.53*1e3), (17.5*1e3, 1.5*1e3)] 
+    # nodes = [(6.8*1e3, 19.1*1e3), (5.46*1e3, 15.32*1e3), (4.04*1e3, 13.13*1e3), (6.29*1e3, 11.14*1e3), (10.4*1e3, 8.35*1e3),
+    #          (14.523*1e3, 4.53*1e3), (17.5*1e3, 1.5*1e3)] 
+    nodes = [(6.8*1e3, 19.1*1e3), (6.29*1e3, 11.14*1e3), (17.5*1e3, 1.5*1e3)]
     for node_index in range(len(nodes)-1):
         G.add_edge(node_index, node_index+1, dis=1)
-        G.nodes[node_index]['pos'] = nodes[node_index]
-        G.nodes[node_index+1]['pos'] = nodes[node_index+1]
+        G.nodes[node_index]['pos'] = (int(nodes[node_index][0]), int(nodes[node_index][1]))
+        G.nodes[node_index+1]['pos'] = (int(nodes[node_index+1][0]), int(nodes[node_index+1][1]))
     G.add_edge(node_index+1, 0, dis=7)    
     G.graph['UGV_goal'] = node_index+1
     pos = nx.get_node_attributes(G,'pos')
-    nx.draw(G, pos=pos,alpha=0.5, node_color='r', node_size=8)
+    #nx.draw(G, pos=pos,alpha=0.5, node_color='r', node_size=8)
     return G
 
 def plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state, ):
@@ -607,37 +650,67 @@ def plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_s
     
 
 if __name__ == "__main__" :
-    print("hello world")
+    # print("hello world")
     UAV_task = generate_UAV_task()
-    # UGV_task is a directed graph. Node name is an index
+    # # UGV_task is a directed graph. Node name is an index
     UGV_task = generate_UGV_task()
     road_network = generate_road_network()
-    UAV_state = [x for x in UAV_task.nodes if (UAV_task.out_degree(x)==1 and UAV_task.in_degree(x)==0)][0]
-    UGV_state = UGV_task.nodes[0]['pos']
-    battery_state = 20
-    rendezvous = Rendezvous(UAV_task, UGV_task, road_network)
-    #plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
-    print("test UAV task action")
-    print("UAV state is {}, UGV state is {}, battery state is {}".format(UAV_state, UGV_state, battery_state))
-    action = 'v_be'
-    print("UAV take action {} to transit to the next task node".format(action))
-    state = (UAV_state[0], UAV_state[1], UGV_state[0], UGV_state[1], battery_state)
+    # UAV_state = [x for x in UAV_task.nodes if (UAV_task.out_degree(x)==1 and UAV_task.in_degree(x)==0)][0]
+    # UGV_state = UGV_task.nodes[0]['pos']
+    # battery_state = 20
+    rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
+    # #plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
+    # print("test UAV task action")
+    # print("UAV state is {}, UGV state is {}, battery state is {}".format(UAV_state, UGV_state, battery_state))
+    # action = 'v_be'
+    # print("UAV take action {} to transit to the next task node".format(action))
+    # state = (UAV_state[0], UAV_state[1], UGV_state[0], UGV_state[1], battery_state)
 
+    # UGV_road_state = UGV_state + UGV_state
+    # UGV_task_node = 1
+    # UAV_state, UGV_state, UGV_road_state, UGV_task_node, battery_state = rendezvous.transit(state, action, UGV_road_state, UGV_task_node)
+    # #plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
+    
+    
+    # # test rendezvous action
+    # print("test UAV rendezvous action")
+    # print("UAV state is {}, UGV state is {}, battery state is {}".format(UAV_state, (int(UGV_state[0]), int(UGV_state[1])), battery_state))
+    # action = 'v_be_be'
+    # state = (UAV_state[0], UAV_state[1], UGV_state[0], UGV_state[1], battery_state)
+    # UAV_state, UGV_state, UGV_road_state, UGV_task_node, battery_state = rendezvous.transit(state, action, UGV_road_state, UGV_task_node)
+    # #plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
+
+    
+    print("test UGV transition")
+    #state = (5830, 16495, 6775, 18131, 88, 1)
+    state = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
+    UAV_state = (state[0], state[1])
+    UGV_state = (state[2], state[3])
+    energy_state = state[4]/100*rendezvous.battery
+    UGV_task_node = state[5]
     UGV_road_state = UGV_state + UGV_state
-    UGV_task_node = 1
-    UAV_state, UGV_state, UGV_road_state, UGV_task_node, battery_state = rendezvous.transit(state, action, UGV_road_state, UGV_task_node)
-    #plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
+    descendants = list(UAV_task.neighbors(UAV_state))
+    assert len(descendants) == 1
+    UAV_state_next = descendants[0]
+    duration = UAV_task.edges[UAV_state, UAV_state_next]['dis'] / rendezvous.velocity_uav['v_be']
     
+    UGV_state_next, UGV_road_state_next, UGV_task_node_next = rendezvous.UGV_transit(UGV_state, UGV_road_state, UGV_task_node, duration)                        
     
-    # test rendezvous action
-    print("test UAV rendezvous action")
-    print("UAV state is {}, UGV state is {}, battery state is {}".format(UAV_state, (int(UGV_state[0]), int(UGV_state[1])), battery_state))
     action = 'v_be_be'
-    state = (UAV_state[0], UAV_state[1], UGV_state[0], UGV_state[1], battery_state)
-    UAV_state, UGV_state, UGV_road_state, UGV_task_node, battery_state = rendezvous.transit(state, action, UGV_road_state, UGV_task_node)
-    #plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state)
-
+    v1 = action[0:4]
+    v2 = 'v'+action[4:]
+    # UAV choose to go to next task node with best endurance velocity
+    descendants = list(UAV_task.neighbors(UAV_state))
+    assert len(descendants) == 1
+    UAV_state_next = descendants[0]
+    # compute rendezvous point and time
+    rendezvous_state, t1, t2 = rendezvous.rendezvous_point(UAV_state, UAV_state_next, 
+                                       UGV_state, UGV_road_state, UGV_task_node, 
+                                       rendezvous.velocity_uav[v1], rendezvous.velocity_uav[v2])
     
+    #Todo: compute the state of UGV after t2 and return
+    #print("rendezvous state is {}".format(rendezvous_state))
+    assert rendezvous_state in road_network.nodes
     
 
     

@@ -47,7 +47,7 @@ for interval in stats:
     
 state_f = ('f', 'f', 'f', 'f', 'f', 'f')
 state_l = ('l', 'l', 'l', 'l', 'l', 'l')
-state_init = (6.8e3, 19.1e3, 6.8e3, 19.1e3, 100, 0)
+state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
 
 
 G = nx.DiGraph()

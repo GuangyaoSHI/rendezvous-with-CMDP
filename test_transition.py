@@ -17,14 +17,13 @@ with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
 with open('policy.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     policy = pickle.load(f)
 
-
 # Getting back the objects:
 with open('state_transition_graph.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     G = pickle.load(f)
     
 state_f = ('f', 'f', 'f', 'f', 'f', 'f')
 state_l = ('l', 'l', 'l', 'l', 'l', 'l')    
-state_init = (0, 0, 3, 3, 100, 0)
+state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
 
 # generate state transition function
 UAV_task = generate_UAV_task()
@@ -34,7 +33,7 @@ UAV_goal = UAV_goal[0]
 UGV_task = generate_UGV_task()
 road_network = generate_road_network()
 actions = ['v_be', 'v_be_be']
-rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=7)
+rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
 
 state = state_init
 UAV_state = (state[0], state[1])
@@ -47,54 +46,79 @@ action_traces = []
 while (UAV_state != UAV_goal and state != state_f):
     actions = []
     probs = []
-    probs_uniform = []
-    p = 0
     for action in P_s_a[state]:
         actions.append(action)
         s_a = state + (action,)
         probs.append(policy[s_a])
-        p += policy[s_a]
-        assert p <= 1
-        probs_uniform.append(p)
-    print("probs: {} probs_uniform:{}".format(probs, probs_uniform))    
+    
+    print("state {} policy {}".format(state, dict(zip(actions, probs))))
     # sample 
-    random_num = np.random.rand()
-    for i in range(len(probs_uniform)):
-        if random_num <= probs_uniform[i]:
-            break
-    action = actions[i]
+    action = np.random.choice(actions, 1, p=probs)[0]
+    print("take action {}".format(action))
     action_traces.append(action)
-    # next_states = []
-    # for neighbor in G.neighbors(state):
-    #     print("neighbor is {} action is {}".format(neighbor, G.edges[state, neighbor]['action']))
-    #     if G.edges[state, neighbor]['action'] == action:
-    #         next_states.append(neighbor)
+    if len(action)>4:
+        # compute UAV position after rendezvous
+        descendants = list(UAV_task.neighbors(UAV_state))
+        assert len(descendants) == 1
+        UAV_state_next = descendants[0]
+        
+        ugv_road_state = UGV_state + UGV_state
+        v1 = action[0:4]
+        v2 = 'v'+action[4:]
+        rendezvous_state, t1, t2 = rendezvous.rendezvous_point(UAV_state, UAV_state_next, UGV_state, 
+                                                               ugv_road_state, UGV_task_node, 
+                                                               rendezvous.velocity_uav[v1], 
+                                                               rendezvous.velocity_uav[v2])
+        print("rendezvous at {}!!!!!!!!!!!!!".format(rendezvous_state))
+    # Todo: 
+    next_states = list(P_s_a[state][action].keys())
+    next_state_index = np.random.choice([i for i in range(len(next_states))], 1, p=list(P_s_a[state][action].values()))[0]
+    next_state = next_states[next_state_index]
+    print("transit to state {}".format(next_state))
     
     
-    # Todo: it shouldn't be uniform sampling
-    next_state = random.sample(list(P_s_a[state][action].keys()), 1)[0]
+    # plot roadnetwork
+    for edge in road_network.edges:
+        x = [edge[0][0], edge[1][0]]
+        y = [edge[0][1], edge[1][1]]
+        plt.plot(x, y, marker='*', color='b', alpha=0.2)
+    # plot UAV task
+    for edge in UAV_task.edges:
+        x, y = edge[0][0], edge[0][1] 
+        u, v = edge[1][0]-edge[0][0], edge[1][1]-edge[0][1] 
+        plt.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=0.3)
+    # plot UAV UGV position now
+    plt.plot(UAV_state[0], UAV_state[1], marker='o', color='r')
+    plt.text(UAV_state[0], UAV_state[1], 'UAV now', horizontalalignment='left')
+    plt.plot(UGV_state[0], UGV_state[1], marker='s', color='g')
+    plt.text(UGV_state[0], UGV_state[1], 'UGV now', horizontalalignment='right')
+    # plot UAV transition
+    if len(action)>4:
+        x, y = UAV_state[0], UAV_state[1]
+        u, v = rendezvous_state[0] - UAV_state[0], rendezvous_state[1] - UAV_state[1] 
+        plt.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+        plt.plot(x, y, marker='p', color='m')
+        #plt.text(x, y, 'rendezvous here')
+        
+        x, y = rendezvous_state[0], rendezvous_state[1]
+        u, v = UAV_state_next[0]-rendezvous_state[0], UAV_state_next[1]-rendezvous_state[1]
+        plt.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+    else:
+        if next_state == state_f:
+            UAV_state_next = (0, 0)
+        else:
+            UAV_state_next = (next_state[0], next_state[1])
+        x, y = UAV_state[0], UAV_state[1]
+        u, v = UAV_state_next[0] - UAV_state[0], UAV_state_next[1] - UAV_state[1] 
+        plt.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+    
     state_traces.append(next_state)
     state = next_state
     UAV_state = (state[0], state[1])
+    UGV_state = (state[2], state[3])
+    UGV_task_node = state[5]
 
-    # state_physical = UAV_state + UGV_state + (energy_state, ) + (UGV_task_node, )
-    # UGV_road_state =  UGV_state +  UGV_state
-    # UAV_state, UGV_state, UGV_road_state, UGV_task_node, energy_state = rendezvous.transit(state_physical, action, UGV_road_state, UGV_task_node)
-    
-    # if (energy_state == 'f') or (energy_state < 0):
-    #     state = state_f
-    #     print("transition to failure state from state {}".format(state))
-    
-    #  # use discrete UGV_state by assigning UGV to one road state
-    # rs1 = np.linalg.norm(np.array(UGV_state)-np.array([UGV_road_state[0], UGV_road_state[1]]))
-    # rs2 = np.linalg.norm(np.array(UGV_state)-np.array([UGV_road_state[2], UGV_road_state[3]]))
-    # if rs1<rs2:
-    #     UGV_state = (UGV_road_state[0], UGV_road_state[1])
-    # else:
-    #     UGV_state = (UGV_road_state[2], UGV_road_state[3])
-    
-    # # compute state in CMDP
-    # state = UAV_state + UGV_state + (int(energy_state/rendezvous.battery*100), )+(UGV_task_node, )
+
 
 UAV_traces = []
 UGV_traces = []
