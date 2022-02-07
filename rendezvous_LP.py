@@ -271,6 +271,7 @@ def transition_prob(s_a_s):
     if (state[0], state[1]) == UAV_goal:
         assert action == 'l' and (next_state == state_l)
         return 1
+    
     # loop state
     if state == state_l:
         assert action == 'l' and (next_state == state_l)

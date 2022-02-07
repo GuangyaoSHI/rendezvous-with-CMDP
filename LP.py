@@ -14,6 +14,7 @@ from gurobipy import GRB
 from utils import *
 import pickle
 import logging
+import copy
 
 logger = logging.getLogger(__name__) # Set up logger
 
@@ -37,8 +38,14 @@ with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     P_s_a = pickle.load(f)
 
 with open('state_transition_graph.obj', 'rb') as f:  # Python 3: open(..., 'rb')
-    G = pickle.load(f)
-                       
+    GG = pickle.load(f)
+
+#reduce the size of G
+G = copy.deepcopy(GG)
+for node in GG.nodes:
+    if not nx.has_path(GG, source=state_init, target=node):
+        G.remove_node(node)
+                     
 # create transition function 
 def transition_prob(s_a_s):
     state = tuple(list(s_a_s)[0:6])
@@ -146,7 +153,7 @@ for state in P_s_a:
 
 # add Non-negative continuous variables that lies between 0 and 1        
 rho = model.addVars(indices, lb=0,  vtype=GRB.CONTINUOUS,  name='rho')
-model.addConstrs((rho[s_a] >= 1e-10 for s_a in indices), name='non-negative-ctrs')
+model.addConstrs((rho[s_a] >= 0 for s_a in indices), name='non-negative-ctrs')
 
 # add constraints 
 # cost constraints
@@ -159,7 +166,12 @@ cost_ctrs =  model.addConstr(C <= threshold, name='cost_ctrs')
 
 keys = list(P_s_a.keys())
 print("start to add equality constraint")
-for state in P_s_a:
+for node in G.nodes:
+    if len(node) == 7:
+        continue
+    if len(node) == 6:
+        state = node
+    
     if state == state_l:
         continue
     if 2650 <= keys.index(state) <= 2660:
@@ -182,7 +194,6 @@ for state in P_s_a:
         s_a_s = s_a + state
         rhs += rho[s_a] * transition_prob(s_a_s)
         
-    
     if state == state_init:
         print('initial state delta function')
         rhs += 1
