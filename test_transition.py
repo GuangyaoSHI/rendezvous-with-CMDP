@@ -32,7 +32,7 @@ UAV_goal = UAV_goal[0]
 # UGV_task is a directed graph. Node name is an index
 UGV_task = generate_UGV_task()
 road_network = generate_road_network()
-actions = ['v_be', 'v_be_be']
+actions = ['v_be', 'v_br', 'v_be_be', 'v_br_br']
 rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
 
 state = state_init
@@ -43,6 +43,7 @@ UGV_task_node = state[5]
 state_traces = [state]
 action_traces = []
 
+i = 0
 while (UAV_state != UAV_goal and state != state_f):
     actions = []
     probs = []
@@ -51,6 +52,7 @@ while (UAV_state != UAV_goal and state != state_f):
         s_a = state + (action,)
         probs.append(policy[s_a])
     
+    print("step {}".format(i))
     print("state {} policy {}".format(state, dict(zip(actions, probs))))
     # sample 
     action = np.random.choice(actions, 1, p=probs)[0]
@@ -76,33 +78,92 @@ while (UAV_state != UAV_goal and state != state_f):
     next_state = next_states[next_state_index]
     print("transit to state {}".format(next_state))
     
-    
+    fig, axs = plt.subplots()
     # plot roadnetwork
+    add_label = True
     for edge in road_network.edges:
         x = [edge[0][0], edge[1][0]]
         y = [edge[0][1], edge[1][1]]
-        plt.plot(x, y, marker='*', color='b', alpha=0.2)
+        if add_label:
+            axs.plot(x, y, marker='*', color='b', alpha=0.2, label='road network')
+            add_label = False
+        else:
+            axs.plot(x, y, marker='*', color='b', alpha=0.2)
+    
+    add_label = True
     # plot UAV task
     for edge in UAV_task.edges:
         x, y = edge[0][0], edge[0][1] 
         u, v = edge[1][0]-edge[0][0], edge[1][1]-edge[0][1] 
-        plt.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=0.3)
+        if add_label:
+            axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=0.3, label="UAV task")
+            add_label = False
+        else:
+            axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=0.3)
+
     # plot UAV UGV position now
-    plt.plot(UAV_state[0], UAV_state[1], marker='o', color='r')
-    plt.text(UAV_state[0], UAV_state[1], 'UAV now', horizontalalignment='left')
-    plt.plot(UGV_state[0], UGV_state[1], marker='s', color='g')
-    plt.text(UGV_state[0], UGV_state[1], 'UGV now', horizontalalignment='right')
+    axs.plot(UAV_state[0], UAV_state[1], marker='o', color='r', label="UAV now")
+    
+    #plt.text(UAV_state[0], UAV_state[1], 'UAV now', horizontalalignment='left')
+    axs.plot(UGV_state[0], UGV_state[1], marker='s', color='g', label="UGV now")
+    #plt.text(UGV_state[0], UGV_state[1], 'UGV now', horizontalalignment='right')
     # plot UAV transition
+    axs.legend()
+    axs.set_title("policy:"+str(dict(zip(actions, probs))))
+    axs.set_xlabel("battery:"+str(state[4]))
+    #axs.set_aspect('equal', 'box')
+    axs.axis('equal')
+    fig.savefig("step"+str(i)+".pdf")
+    
+    
+    
+    
+    
+    fig, axs = plt.subplots()
+    # plot roadnetwork
+    add_label = True
+    for edge in road_network.edges:
+        x = [edge[0][0], edge[1][0]]
+        y = [edge[0][1], edge[1][1]]
+        if add_label:
+            axs.plot(x, y, marker='*', color='b', alpha=0.2, label='road network')
+            add_label = False
+        else:
+            axs.plot(x, y, marker='*', color='b', alpha=0.2)
+    
+    add_label = True
+    # plot UAV task
+    for edge in UAV_task.edges:
+        x, y = edge[0][0], edge[0][1] 
+        u, v = edge[1][0]-edge[0][0], edge[1][1]-edge[0][1] 
+        if add_label:
+            axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=0.3, label="UAV task")
+            add_label = False
+        else:
+            axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=0.3)
+
+    # plot UAV UGV position now
+    axs.plot(UAV_state[0], UAV_state[1], marker='o', color='r', label="UAV now")
+    
+    #plt.text(UAV_state[0], UAV_state[1], 'UAV now', horizontalalignment='left')
+    axs.plot(UGV_state[0], UGV_state[1], marker='s', color='g', label="UGV now")
+    #plt.text(UGV_state[0], UGV_state[1], 'UGV now', horizontalalignment='right')
+    # plot UAV transition
+    axs.legend()
+    axs.set_title("policy:"+str(dict(zip(actions, probs))))
+    axs.set_xlabel("choose action "+str(action) + "       battery:"+str(state[4]))
+    #axs.set_aspect('equal', 'box')
+    axs.axis('equal')
     if len(action)>4:
         x, y = UAV_state[0], UAV_state[1]
         u, v = rendezvous_state[0] - UAV_state[0], rendezvous_state[1] - UAV_state[1] 
-        plt.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
-        plt.plot(x, y, marker='p', color='m')
+        axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+        axs.plot(x, y, marker='p', color='m')
         #plt.text(x, y, 'rendezvous here')
         
         x, y = rendezvous_state[0], rendezvous_state[1]
         u, v = UAV_state_next[0]-rendezvous_state[0], UAV_state_next[1]-rendezvous_state[1]
-        plt.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+        axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
     else:
         if next_state == state_f:
             UAV_state_next = (0, 0)
@@ -110,8 +171,14 @@ while (UAV_state != UAV_goal and state != state_f):
             UAV_state_next = (next_state[0], next_state[1])
         x, y = UAV_state[0], UAV_state[1]
         u, v = UAV_state_next[0] - UAV_state[0], UAV_state_next[1] - UAV_state[1] 
-        plt.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+        axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
+    fig.savefig("step"+str(i)+"action"+".pdf")
     
+    
+    
+    
+    
+    i += 1
     state_traces.append(next_state)
     state = next_state
     UAV_state = (state[0], state[1])

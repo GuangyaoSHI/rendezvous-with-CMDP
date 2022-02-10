@@ -19,18 +19,23 @@ UAV_goal = UAV_goal[0]
 UGV_task = generate_UGV_task()
 road_network = generate_road_network()
 
-actions = ['v_be', 'v_be_be']
+actions = ['v_be', 'v_br','v_be_be', 'v_br_br']
 rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
 rendezvous.display = False
 
 # get power consumption distribution:
 # best endurance velocity
-stats = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav['v_be'])
-powers_be = []
-probs_be = []
-for interval in stats:
-    powers_be.append((interval[0]+interval[1])/2)
-    probs_be.append(stats[interval])
+stats = {}
+for action in ['v_be', 'v_br']:
+    stats[action] = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav[action])
+
+powers = {'v_be':[], 'v_br':[]}
+probs = {'v_be':[], 'v_br':[]}
+
+for action in ['v_be', 'v_br']:
+    for interval in stats[action]:
+        powers[action].append((interval[0]+interval[1])/2)
+        probs[action].append(stats[action][interval])
 
 # best range velocity
 # stats = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav['v_br'])
@@ -76,7 +81,7 @@ for uav_state in UAV_task.nodes:
                     P_s_a[state][action] = {}
                 
                 for action in actions:
-                    if action == 'v_be':  
+                    if action in ['v_be',  'v_br']:  
                         # UAV choose to go to next task node with best endurance velocity
                         descendants = list(UAV_task.neighbors(uav_state))
                         assert len(descendants) == 1
@@ -84,8 +89,8 @@ for uav_state in UAV_task.nodes:
                         duration = UAV_task.edges[uav_state, UAV_state_next]['dis'] / rendezvous.velocity_uav[action]
                         
                         # compute the energy distribution
-                        energy_states = list(energy_state-np.array(powers_be)*duration)
-                        energy_distribution = dict(zip(energy_states, probs_be))
+                        energy_states = list(energy_state-np.array(powers[action])*duration)
+                        energy_distribution = dict(zip(energy_states, probs[action]))
                         
                         UGV_road_state = ugv_state + ugv_state
                         UGV_state_next, UGV_road_state_next, UGV_task_node_next = rendezvous.UGV_transit(ugv_state, UGV_road_state, ugv_task_node, duration)                        
@@ -116,7 +121,7 @@ for uav_state in UAV_task.nodes:
                                 # assert state_ == ('f', 'f', 'f', 'f', 'f', 'f')
                                 P_s_a[state][action][state_] += energy_distribution[p_c]
                         
-                    if action == 'v_be_be':
+                    if action in ['v_be_be', 'v_br_br']:
                         # compute UAV position after rendezvous
                         descendants = list(UAV_task.neighbors(uav_state))
                         assert len(descendants) == 1
@@ -141,8 +146,8 @@ for uav_state in UAV_task.nodes:
                             UGV_state_next = (UGV_road_state_next[2], UGV_road_state_next[3])
                         
                         # compute energy distribution after rendezvous
-                        energy_states = list(energy_state - np.array(powers_be)*t1)
-                        energy_distribution = dict(zip(energy_states, probs_be))
+                        energy_states = list(energy_state - np.array(powers[v1])*t1)
+                        energy_distribution = dict(zip(energy_states, probs[v1]))
                         
                         failure_prob = 0
                         for p_c in energy_states:
@@ -156,9 +161,9 @@ for uav_state in UAV_task.nodes:
                         if failure_prob == 1:
                             continue
                         
-                        energy_states2 = list(rendezvous.battery - np.array(powers_be)*t2)
+                        energy_states2 = list(rendezvous.battery - np.array(powers[v2])*t2)
                         #Todo: probs_be need to change if br is used
-                        energy_distribution2 = dict(zip(energy_states2, probs_be))
+                        energy_distribution2 = dict(zip(energy_states2, probs[v2]))
                         for p_c in energy_states2:
                             if p_c < 0:
                                 state_ = ('f', 'f', 'f', 'f', 'f', 'f')
@@ -296,10 +301,13 @@ def reward(s_a):
         assert action == 'l', "should transit to loop state"
         return 0
     
-    if action == 'v_be':
-        return -1
+    if action in ['v_be', 'v_br']:
+        uav_state = state[0:2]
+        uav_state_next = list(UAV_task.neighbors(uav_state))[0]
+        duration = UAV_task.edges[uav_state, uav_state_next]['dis'] / rendezvous.velocity_uav[action]
+        return -duration
     
-    if action == 'v_be_be':
+    if action in ['v_be_be', 'v_br_br']:
         uav_state = state[0:2]
         uav_state_next = list(UAV_task.neighbors(uav_state))[0]
         ugv_state = state[2:4]
@@ -343,7 +351,7 @@ def cost(s_a):
     return C
 
 
-threshold = 0.1
+threshold = 0.2
 model = gp.Model('LP_CMDP')
 
 #indics for variables
@@ -369,8 +377,7 @@ for s_a in indices:
 cost_ctrs =  model.addConstr(C <= threshold, name='cost_ctrs')    
 
 print("start to add equality constraint")
-for state in P_s_a:
-    
+for state in P_s_a: 
     if state == state_l:
         continue
     lhs = 0
@@ -414,18 +421,25 @@ policy = {}
 for s_a in indices:
     state = tuple(list(s_a)[0:6])
     actions = list(P_s_a[state].keys())
-    deno = rho[s_a].x
+    # numerical issue, gurobi will sometimes return a very small negative number for zero
+    if rho[s_a].x < 0:
+        deno = 0
+    else:
+        deno = rho[s_a].x
     # if rho[s_a].x > 0:
         #print("s_a: {} rho_s_a: {}".format(s_a, rho[s_a].x ))
     num = 0
     for action in actions:
         #assert rho[state+(action, )].x >= 0
-        num += rho[state+(action, )].x
         if rho[state+(action, )].x < 0:
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            num += 0
+        else:
+            num += rho[state+(action, )].x
+        if rho[state+(action, )].x < 0:
+            print("numerical issue !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             print(rho[state+(action, )].x)
     
-    assert num >= deno
+    #assert num >= deno
     if num == 0:
         policy[s_a] = 0
     else:
@@ -433,7 +447,8 @@ for s_a in indices:
         if policy[s_a]>0:
             print("s_a: {} pi_s_a: {}".format(s_a, policy[s_a]))
     #print("Optimal Prob of choosing action {} at state {} is {}".format((s_a[2], s_a[3]), state, deno/num))
-        
+
+print("objective value is {}".format(obj.getValue()))        
 # Saving the objects:
 with open('policy.obj', 'wb') as f:  # Python 3: open(..., 'wb')
     pickle.dump(policy, f)        
