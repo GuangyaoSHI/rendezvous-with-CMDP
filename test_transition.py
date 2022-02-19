@@ -42,6 +42,7 @@ energy_state = state[4]/100*rendezvous.battery
 UGV_task_node = state[5]
 state_traces = [state]
 action_traces = []
+duration_traces = []
 
 i = 0
 while (UAV_state != UAV_goal and state != state_f):
@@ -58,11 +59,12 @@ while (UAV_state != UAV_goal and state != state_f):
     action = np.random.choice(actions, 1, p=probs)[0]
     print("take action {}".format(action))
     action_traces.append(action)
+    
+    # compute UAV position after rendezvous
+    descendants = list(UAV_task.neighbors(UAV_state))
+    assert len(descendants) == 1
+    UAV_state_next = descendants[0]
     if len(action)>4:
-        # compute UAV position after rendezvous
-        descendants = list(UAV_task.neighbors(UAV_state))
-        assert len(descendants) == 1
-        UAV_state_next = descendants[0]
         
         ugv_road_state = UGV_state + UGV_state
         v1 = action[0:4]
@@ -72,6 +74,10 @@ while (UAV_state != UAV_goal and state != state_f):
                                                                rendezvous.velocity_uav[v1], 
                                                                rendezvous.velocity_uav[v2])
         print("rendezvous at {}!!!!!!!!!!!!!".format(rendezvous_state))
+        duration_traces.append(t1+t2)
+    else:
+        duration = UAV_task.edges[UAV_state, UAV_state_next]['dis'] / rendezvous.velocity_uav[action]
+        duration_traces.append(duration)
     # Todo: 
     next_states = list(P_s_a[state][action].keys())
     next_state_index = np.random.choice([i for i in range(len(next_states))], 1, p=list(P_s_a[state][action].values()))[0]

@@ -154,9 +154,9 @@ for state in P_s_a:
         indices.append(state + (action,))
 
 # add Non-negative continuous variables that lies between 0 and 1        
-rho = model.addVars(indices, lb=0,  vtype=GRB.CONTINUOUS,  name='rho')
-model.addConstrs((rho[s_a] >=0 for s_a in indices), name='non-negative-ctrs')
-
+rho = model.addVars(indices, lb= 0.0,  vtype=GRB.CONTINUOUS,  name='rho')
+model.addConstrs((rho[s_a] >= 0.0 for s_a in indices), name='non-negative-ctrs')
+model.update()
 # add constraints 
 # cost constraints
 C = 0
@@ -203,7 +203,8 @@ for state in P_s_a:
 obj = 0
 for s_a in indices:
     obj += rho[s_a] * reward(s_a)
-    
+
+model.Params.FeasibilityTol = 1e-9    
 model.setObjective(obj, GRB.MAXIMIZE)
 model.optimize()
 
@@ -220,7 +221,7 @@ for s_a in indices:
         #print("s_a: {} rho_s_a: {}".format(s_a, rho[s_a].x ))
     num = 0
     for action in actions:
-        #assert rho[state+(action, )].x >= 0
+        assert rho[state+(action, )].x >= 0
         if rho[state+(action, )].x < 0:
             num += 0
         else:
@@ -228,6 +229,9 @@ for s_a in indices:
         if rho[state+(action, )].x < 0:
             print("numerical issue !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             print(rho[state+(action, )].x)
+            print("all state action pairs")
+            for a in actions:
+                print(rho[state+(a, )].x)
     
     #assert num >= deno
     if num == 0:
@@ -245,7 +249,18 @@ with open('policy.obj', 'wb') as f:  # Python 3: open(..., 'wb')
     
     
 # simulate the whole process
-    
-    
+
+
+# debug for gurobi solver
+# for s_a in indices:
+#     state = tuple(list(s_a)[0:6])
+#     actions = list(P_s_a[state].keys())  
+#     #print("state is {}".format(state))
+#     for action in actions:
+#         if abs(rho[state+(action, )].x) >0:
+#             print("state-action is {} rho is {}".format(state+(action, ), rho[state+(action, )].x))
 
             
+for s_a in indices:
+    if rho[s_a].x >0:
+        print("state-action is {} rho is {}".format(s_a, rho[s_a].x))
