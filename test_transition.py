@@ -180,10 +180,6 @@ while (UAV_state != UAV_goal and state != state_f):
         axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
     fig.savefig("step"+str(i)+"action"+".pdf")
     
-    
-    
-    
-    
     i += 1
     state_traces.append(next_state)
     state = next_state
