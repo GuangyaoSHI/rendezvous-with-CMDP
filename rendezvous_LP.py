@@ -12,15 +12,23 @@ import logging
 logger = logging.getLogger(__name__) # Set up logger
 
 # generate state transition function
-UAV_task = generate_UAV_task()
+# UGV_task is a directed graph. Node name is an index
+randomcase = True
+if randomcase:
+    road_network = generate_road_network_random()
+    UAV_task = generate_UAV_task_random()
+    UGV_task = generate_UGV_task_random(road_network)
+else:
+    UGV_task = generate_UGV_task()
+    road_network = generate_road_network()
+    UAV_task = generate_UAV_task()
+
 UAV_goal = [x for x in UAV_task.nodes() if (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==1) or (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==0)]
 UAV_goal = UAV_goal[0]
-# UGV_task is a directed graph. Node name is an index
-UGV_task = generate_UGV_task()
-road_network = generate_road_network()
+
 
 actions = ['v_be', 'v_br','v_be_be', 'v_br_br']
-rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
+rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=240e3)
 rendezvous.display = False
 
 # get power consumption distribution:
@@ -37,15 +45,6 @@ for action in ['v_be', 'v_br']:
         powers[action].append((interval[0]+interval[1])/2)
         probs[action].append(stats[action][interval])
 
-# best range velocity
-# stats = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav['v_br'])
-# powers_br = []
-# probs_br = []
-# for interval in stats:
-#     powers_br.append((interval[0]+interval[1])/2)
-#     probs_br.append(stats[interval])
-
-
 
 # transition probability
 P_s_a = {}
@@ -58,7 +57,11 @@ battery_interval = 4
 
 state_f = ('f', 'f', 'f', 'f', 'f', 'f')
 state_l = ('l', 'l', 'l', 'l', 'l', 'l')
-state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
+
+if randomcase:
+    state_init = (0, 0, 0, 0, 100, 0)
+else:
+    state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
 
 for uav_state in UAV_task.nodes:
     print("uav state {}".format(uav_state))
@@ -209,8 +212,12 @@ P_s_a[state_l][action][state_l] = 1
 #     P_s_a = {**P_s_a, **P_s_a__}
 
 # Saving the state-transition graph:
-with open('P_s_a.obj', 'wb') as f:  # Python 3: open(..., 'wb')
-    pickle.dump(P_s_a, f)   
+if randomcase:
+    with open('P_s_a_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+        pickle.dump(P_s_a, f)
+else:    
+    with open('P_s_a.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+        pickle.dump(P_s_a, f)   
       
 # construct a transition graph
 G = nx.DiGraph()
@@ -223,8 +230,12 @@ for state in P_s_a:
             G.add_edge(state+(action,), next_state, action=action, prob=P_s_a[state][action][next_state])
 
 # Saving the state-transition graph:
-with open('state_transition_graph.obj', 'wb') as f:  # Python 3: open(..., 'wb')
-    pickle.dump(G, f)
+if randomcase:
+    with open('state_transition_graph_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+        pickle.dump(G, f)
+else:        
+    with open('state_transition_graph.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+        pickle.dump(G, f)
 
 # for node in G:
 #     if node not in P_s_a.keys():
@@ -250,11 +261,18 @@ for state in P_s_a:
 #     pickle.dump(P_s_a, f)
 
 # Getting back the objects:
-with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
-    P_s_a = pickle.load(f)
+if randomcase:    
+    with open('P_s_a_random.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+        P_s_a = pickle.load(f)
+    
+    with open('state_transition_graph_random.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+        G = pickle.load(f)
+else:
+    with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+        P_s_a = pickle.load(f)
 
-with open('state_transition_graph.obj', 'rb') as f:  # Python 3: open(..., 'rb')
-    G = pickle.load(f)
+    with open('state_transition_graph.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+        G = pickle.load(f)
                        
 # create transition function 
 def transition_prob(s_a_s):
@@ -346,12 +364,12 @@ def cost(s_a):
         if next_state == state_f:
             C += P_s_a[state][action][next_state]
     
-    assert C <= 1
+    assert C <= (1+1e-9)
     
     return C
 
 
-threshold = 0.2
+threshold = 0.5
 model = gp.Model('LP_CMDP')
 
 #indics for variables
@@ -415,6 +433,8 @@ for s_a in indices:
     obj += rho[s_a] * reward(s_a)
     
 model.setObjective(obj, GRB.MAXIMIZE)
+model.Params.FeasibilityTol = 1e-9    
+
 model.optimize()
 
 policy = {}
@@ -450,8 +470,12 @@ for s_a in indices:
 
 print("objective value is {}".format(obj.getValue()))        
 # Saving the objects:
-with open('policy.obj', 'wb') as f:  # Python 3: open(..., 'wb')
-    pickle.dump(policy, f)        
+if randomcase:
+    with open('policy_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+        pickle.dump(policy, f)  
+else:        
+    with open('policy.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+        pickle.dump(policy, f)        
     
     
 # simulate the whole process

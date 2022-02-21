@@ -141,7 +141,7 @@ def cost(s_a):
     return C
 
 
-threshold = 1
+threshold = 0.5
 model = gp.Model('LP_CMDP')
 
 #indics for variables
@@ -244,7 +244,7 @@ for s_a in indices:
 
 print("objective value is {}".format(obj.getValue()))        
 # Saving the objects:
-with open('policy.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+with open('policy'+str(threshold)+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
     pickle.dump(policy, f)        
     
     

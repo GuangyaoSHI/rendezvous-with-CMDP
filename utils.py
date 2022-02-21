@@ -26,7 +26,7 @@ class Rendezvous():
         # rendezvous action may change the task, some nodes may be inserted into tha task 
         self.UGV_task = UGV_task 
         self.UGV_goal = UGV_task.graph['UGV_goal']
-        self.power_measure = UAV_task.graph['dis_per_energy']
+        #self.power_measure = UAV_task.graph['dis_per_energy']
         
         # road network can be viewed as a fine discretization of 2D continuous road network
         self.road_network = road_network 
@@ -536,6 +536,36 @@ def generate_road_network():
     nx.draw(G, pos=pos, alpha=1, node_color='r', node_size=2)
     return G
 
+
+def generate_road_network_random():
+    road_network = nx.grid_2d_graph(11, 11)
+    mapping = {}
+    for node in road_network.nodes:
+        mapping[node] = (node[0]*2000, node[1]*2000)
+    road_network = nx.relabel_nodes(road_network, mapping)
+    
+    # downsample the graph
+    for i in range(70):
+        has_removed = False
+        while not has_removed:
+            G = nx.Graph(road_network)
+            node = random.sample(list(G.nodes), 1)[0]
+            if node == (0, 0):
+                continue
+            G.remove_node(node)
+            if nx.is_connected(G):
+                has_removed = True
+                road_network.remove_node(node)
+    
+    assert (0, 0) in road_network.nodes
+    for edge in road_network.edges:
+        road_network.edges[edge]['dis'] = np.linalg.norm(np.array(edge[0])-np.array(edge[1]))
+    
+    pos = dict(zip(road_network.nodes, road_network.nodes))
+    nx.draw(road_network, pos=pos, alpha=1, node_color='r', node_size=2)
+    return road_network
+
+
 def generate_UAV_task():
     # angle = 70 / 180 * np.pi
     # length = 13*60*20 / 2
@@ -578,6 +608,53 @@ def generate_UAV_task():
     G.graph['dis_per_energy'] = 1
     return G
 
+
+def generate_UAV_task_random():
+    road_network = nx.grid_2d_graph(21, 21)
+    mapping = {}
+    for node in road_network.nodes:
+        mapping[node] = (node[0]*1000, node[1]*1000)
+    road_network = nx.relabel_nodes(road_network, mapping)
+    
+    # downsample the graph
+    for i in range(250):
+        has_removed = False
+        while not has_removed:
+            G = nx.Graph(road_network)
+            node = random.sample(list(G.nodes), 1)[0]
+            if node == (0, 0):
+                continue
+            G.remove_node(node)
+            if nx.is_connected(G):
+                has_removed = True
+                road_network.remove_node(node)
+    
+    assert (0, 0) in road_network.nodes
+    for edge in road_network.edges:
+        road_network.edges[edge]['dis'] = np.linalg.norm(np.array(edge[0])-np.array(edge[1]))
+    
+    goal_flag = True
+    while goal_flag:
+        goal = random.sample(road_network.nodes, 1)[0]
+        nodes = nx.shortest_path(road_network, source=(0, 0), target=goal)
+        if len(nodes)<30:
+            continue
+        else:
+            nodes = [nodes[i] for i in range(len(nodes)) if i % 3 == 0]
+            goal_flag = False
+            
+    G = nx.DiGraph()
+    for i in range(len(nodes)-1):
+        dis = np.linalg.norm(np.array(nodes[i])-np.array(nodes[i+1]))
+        G.add_edge((int(nodes[i][0]), int(nodes[i][1])), (int(nodes[i+1][0]), int(nodes[i+1][1])), dis=dis)
+   
+    
+    pos = dict(zip(G.nodes, G.nodes))
+    nx.draw(G, pos=pos, alpha=0.5, node_color='b', node_size=8)
+    return G
+
+
+
     
 def generate_UGV_task():
     G = nx.DiGraph()
@@ -609,6 +686,38 @@ def generate_UGV_task():
     pos = nx.get_node_attributes(G,'pos')
     #nx.draw(G, pos=pos,alpha=0.5, node_color='r', node_size=8)
     return G
+
+
+
+def generate_UGV_task_random(road_network):
+    G = nx.DiGraph()
+    # a simple straight line network
+    goal_flag = True
+    while goal_flag:
+        goal = random.sample(road_network.nodes, 1)[0]
+        nodes = nx.shortest_path(road_network, source=(0, 0), target=goal)
+        if len(nodes) < 20:
+            continue
+        else:
+            goal_flag = False
+    
+    node_index = 0
+    
+    nodes = [(0, 0), goal]
+    for node_index in range(len(nodes)-1):
+        G.add_edge(node_index, node_index+1)
+        G.nodes[node_index]['pos'] = (int(nodes[node_index][0]), int(nodes[node_index][1]))
+        G.nodes[node_index+1]['pos'] = (int(nodes[node_index+1][0]), int(nodes[node_index+1][1]))
+        G.edges[(node_index, node_index+1)]['dis'] = np.linalg.norm(np.array(G.nodes[node_index]['pos'])-np.array(G.nodes[node_index+1]['pos']))
+    
+    dis = np.linalg.norm(np.array(G.nodes[0]['pos'])-np.array(G.nodes[node_index+1]['pos']))
+    G.add_edge(node_index+1, 0, dis=dis)    
+    G.graph['UGV_goal'] = node_index+1
+    pos = nx.get_node_attributes(G,'pos')
+    nx.draw(G, pos=pos, alpha=0.5, node_color='r', node_size=8)
+    return G
+
+
 
 def plot_state(road_network, UAV_task, UGV_task, UAV_state, UGV_state, battery_state, ):
     # plot road network

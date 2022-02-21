@@ -8,6 +8,9 @@ from gurobipy import GRB
 from utils import *
 import pickle
 import random
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 # Getting back the objects:
 with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
