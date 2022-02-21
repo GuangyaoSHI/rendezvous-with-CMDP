@@ -193,21 +193,25 @@ if __name__ == "__main__":
     PF_threshold = 0.1
     
     # Getting back the objects:
-    with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('P_s_a_random.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         P_s_a = pickle.load(f)
         
     # Getting back the objects:
-    with open('policy'+str(PF_threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    # with open('policy'+str(PF_threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    #     policy = pickle.load(f)
+    
+    with open('policy'+'_random'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         policy = pickle.load(f)
-
+    
     # Getting back the objects:
     with open('state_transition_graph.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
         
     state_f = ('f', 'f', 'f', 'f', 'f', 'f')
     state_l = ('l', 'l', 'l', 'l', 'l', 'l')    
-    state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
-
+    #state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
+    state_init = (0, 0, 0, 0, 100, 0)
+    
     # generate state transition function
     UAV_task = generate_UAV_task()
     UAV_goal = [x for x in UAV_task.nodes() if (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==1) or (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==0)]
@@ -221,7 +225,7 @@ if __name__ == "__main__":
     #state_traces, action_traces, duration_traces = simulate_rendezvous_baseline(P_s_a, policy, G, state_l, state_f, state_init, UAV_task, UAV_goal, UGV_task, road_network, actions, rendezvous)
 
 
-    '''
+    
     # number of Monte Carlo 
     #MC = [100, 500, 1000, 5000]
     
@@ -242,7 +246,7 @@ if __name__ == "__main__":
     KL = [np.log(pf/PF_threshold)*pf + np.log((1-pf)/(1-PF_threshold))*(1-pf) for pf in PF]
     Prob_success = [successes[mc]/mc for mc in successes]
     print(Prob_success)
-    '''
+    
     
     # increase this to a higher value for the final results 
     mc = 2000
