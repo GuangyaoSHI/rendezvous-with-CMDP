@@ -41,7 +41,7 @@ class Rendezvous():
         
         # time for changing battery
         # Todo: choose a proper value 
-        self.charging_time = 120
+        self.charging_time = 300
         
         # total battery
         # Todo:choose a proper value 

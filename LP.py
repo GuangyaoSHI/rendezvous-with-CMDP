@@ -33,11 +33,12 @@ road_network = generate_road_network()
 actions = ['v_be', 'v_br', 'v_be_be', 'v_br_br']
 rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
 
+experiment_name = 'rel_vel2'
 # Getting back the objects:
-with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+with open('P_s_a'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     P_s_a = pickle.load(f)
 
-with open('state_transition_graph.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+with open('state_transition_graph'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     G = pickle.load(f)
 
 #reduce the size of G
@@ -136,12 +137,12 @@ def cost(s_a):
         if next_state == state_f:
             C += P_s_a[state][action][next_state]
     
-    assert C <= 1
+    assert C <= (1+1e-9)
     
     return C
 
 
-threshold = 0.5
+threshold = 0.1
 model = gp.Model('LP_CMDP')
 
 #indics for variables
@@ -217,11 +218,11 @@ for s_a in indices:
         deno = 0
     else:
         deno = rho[s_a].x
-    # if rho[s_a].x > 0:
-        #print("s_a: {} rho_s_a: {}".format(s_a, rho[s_a].x ))
+    if rho[s_a].x > 0:
+        print("s_a: {} rho_s_a: {}".format(s_a, rho[s_a].x ))
     num = 0
     for action in actions:
-        assert rho[state+(action, )].x >= 0
+        #assert rho[state+(action, )].x >= 0
         if rho[state+(action, )].x < 0:
             num += 0
         else:
@@ -244,7 +245,7 @@ for s_a in indices:
 
 print("objective value is {}".format(obj.getValue()))        
 # Saving the objects:
-with open('policy'+str(threshold)+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+with open('policy'+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
     pickle.dump(policy, f)        
     
     

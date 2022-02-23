@@ -215,12 +215,15 @@ if __name__ == "__main__":
     # Todo: save randomly generated road network
     
     # generate state transition function
-    UAV_task = generate_UAV_task_random()
+    with open('UAV_task'+'_random'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+        UAV_task = pickle.load(f)
     UAV_goal = [x for x in UAV_task.nodes() if (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==1) or (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==0)]
     UAV_goal = UAV_goal[0]
     # UGV_task is a directed graph. Node name is an index
-    road_network = generate_road_network_random()
-    UGV_task = generate_UGV_task_random(road_network)
+    with open('road_network'+'_random'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+        road_network = pickle.load(f)
+    with open('UGV_task'+'_random'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+        UGV_task = pickle.load(f)
 
     actions = ['v_be', 'v_br', 'v_be_be', 'v_br_br']
     rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
@@ -258,6 +261,7 @@ if __name__ == "__main__":
     durations = dict(zip(thresholds, []*len(thresholds)))
     durations_success = dict(zip(thresholds, []*len(thresholds)))
     
+    '''
     for threshold in thresholds:
         with open('policy'+str(threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
             policy = pickle.load(f)
@@ -277,7 +281,7 @@ if __name__ == "__main__":
     
     # put the following information in a table
     prob_success = dict(zip(thresholds, [successes[threshold]/mc for threshold in successes]))
-    
+    '''
     
     # coompute baseline
     success_baseline = 0
@@ -348,7 +352,7 @@ if __name__ == "__main__":
     axs1.set_ylim(0.4, 1)
     axs1.legend(["Greedy", "CMDP"])
     axs1.set_title("Results comparison for c=0.1")
-    fig.savefig("comparison.pdf", bbox_inches='tight')
+    fig.savefig("comparison_random.pdf", bbox_inches='tight')
     
     
     # plot task duration and conditional task duration
@@ -359,7 +363,7 @@ if __name__ == "__main__":
     axs.fill_between(thresholds, np.array(success_durations_mean)-0.5*np.array(success_durations_std), np.array(success_durations_mean)+0.5*np.array(success_durations_std), color='r', alpha=0.2)
     axs.set_title("UAV flight duration")
     axs.legend()
-    fig.savefig("task_duration.pdf", bbox_inches='tight')
+    fig.savefig("task_duration_random.pdf", bbox_inches='tight')
     
     
     fig, axs = plt.subplots()
@@ -368,7 +372,7 @@ if __name__ == "__main__":
     axs.set_title("UAV flight duration")
     axs.set_xlabel("cost threshold")
     axs.set_ylabel("flight duration in seconds")
-    fig.savefig("task_duration_unconditional.pdf", bbox_inches='tight')
+    fig.savefig("task_duration_unconditional_random.pdf", bbox_inches='tight')
     
     
     
@@ -379,7 +383,7 @@ if __name__ == "__main__":
     axs.set_title("UAV flight duration gap")
     axs.set_xlabel("cost threshold")
     axs.set_ylabel("Percentage")
-    fig.savefig("flight_duration_gap.pdf", bbox_inches='tight')
+    fig.savefig("flight_duration_gap_random .pdf", bbox_inches='tight')
     
     
     
