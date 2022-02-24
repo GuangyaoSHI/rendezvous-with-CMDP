@@ -24,6 +24,31 @@ paths = [6.8, 19.1;
          16.322, 3.549;
          17.5, 1.5;
         ];
+
+
+paths = [6.8, 19.1;
+         5.83, 16.495;
+         7.35, 14.48;%outside roadnetwork
+         4.44, 13.993;
+         1, 13.4;
+         2.69, 10.62;
+         5.7, 11.45;
+         10, 12;%outside roadnetwork
+         9.72, 9.2;%outside roadnetwork
+         11.243, 7.518;
+         12.507, 6.27;
+         14.076, 4.845;
+         13.61, 1.23;%outside roadnetwork
+         16.322, 3.549;
+         17.5, 1.5;
+         10, 17;
+         9.5, 15;
+         7, 8.9;
+         12, 4
+        ];
+
+writematrix(paths,'UAV_task_nodes.txt','Delimiter',',')
+
 lengths = [];
 
 for i = 2:size(paths, 1)
@@ -31,13 +56,19 @@ for i = 2:size(paths, 1)
 end
 
 disp(lengths)
-x = paths(:, 1);
-y = paths(:, 2);
+tour = [1,2,3,4,5,6,7,18,19,13,15,14,12,11,10,9,8,17,16,1,2,3,4,5,6,7,18,19,13,15,14,12,11,10,9,8,17,16, 1];
+x = paths(tour, 1);
+y = paths(tour, 2);
 
 figure(2)
-plot(x, y, '-*')
+%plot(x, y, '-*')
+quiver(x(1:end-1), y(1:end-1), x(2:end)-x(1:end-1), y(2:end)-y(1:end-1), 'off')
+hold on
+for i=1:length(paths)
+    text(paths(i, 1), paths(i, 2), num2str(i))
+end
 axis equal
-
+hold off
 
 
 %UGV task

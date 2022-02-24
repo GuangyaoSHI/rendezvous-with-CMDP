@@ -601,13 +601,18 @@ def generate_UAV_task():
              (12.507*1e3, 6.27*1e3), (14.076*1e3, 4.845*1e3), (13.61*1e3, 1.23*1e3), (16.322*1e3, 3.549*1e3),
              (17.5*1e3, 1.5*1e3), (10e3, 17e3), (9.5e3, 15e3), (7e3, 8.9e3), (12e3, 4e3)]
     
-    loop = [8,17,5,6,9,10,15,14,12,11,9,3,17,16,1,2,5,6,7,18,6,5,17,9,10,14,15,13,19,3,17,16,1,2,4,5,6,7,18,9,8]
-    node_index = 0
-    for i in range(len(nodes)-1):
-        dis = np.linalg.norm(np.array(nodes[i])-np.array(nodes[i+1]))
-        G.add_edge((int(nodes[i][0]), int(nodes[i][1])), (int(nodes[i+1][0]), int(nodes[i+1][1])), dis=dis)
-    pos = dict(zip(G.nodes, G.nodes))
-    nx.draw(G, pos=pos, alpha=0.5, node_color='b', node_size=8)
+    loop = [1,2,3,4,5,6,7,18,19,13,15,14,12,11,10,9,8,17,16,1,2,3,4,5,6,7,18,19,13,15,14,12,11,10,9,8,17,16,1]
+    loop = [i-1 for i in loop]
+    for i in range(len(loop)-1):
+        dis = np.linalg.norm(np.array(nodes[loop[i]])-np.array(nodes[loop[i+1]]))
+        G.add_node(i, pos=(int(nodes[loop[i]][0]), int(nodes[loop[i]][1])), label=loop[i])
+        G.add_node(i+1, pos=(int(nodes[loop[i+1]][0]), int(nodes[loop[i+1]][1])), label=loop[i+1])
+        G.add_edge(i, i+1, dis=dis)
+    
+    #pos = dict(zip(G.nodes, G.nodes))
+    pos = nx.get_node_attributes(G, 'pos')
+    labels = nx.get_node_attributes(G, 'label')
+    nx.draw(G, pos=pos, alpha=0.5, node_color='b', node_size=8, labels=labels)
     G.graph['dis_per_energy'] = 1
     return G
 

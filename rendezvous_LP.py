@@ -8,12 +8,14 @@ from gurobipy import GRB
 from utils import *
 import pickle
 import logging
+import time
 
 logger = logging.getLogger(__name__) # Set up logger
 
 # generate state transition function
 # UGV_task is a directed graph. Node name is an index
-randomcase = True
+randomcase = False
+threshold = 0.45
 if randomcase:
     road_network = generate_road_network_random()
     with open('road_network_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -61,16 +63,18 @@ battery_interval = 4
 #probs = [2.27e-2, 13.6e-2, 34.13e-2, 34.13e-2, 13.6e-2, 2.27e-2]
 #values = [-0.25, -0.15, -0.05, 0.05, 0.15, 0.25]
 
-state_f = ('f', 'f', 'f', 'f', 'f', 'f')
-state_l = ('l', 'l', 'l', 'l', 'l', 'l')
+state_f = ('f',  'f', 'f', 'f', 'f')
+state_l = ('l',  'l', 'l', 'l', 'l')
 
 if randomcase:
     state_init = (0, 0, 0, 0, 100, 0)
 else:
-    state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
+    state_init = (0, int(6.8e3), int(19.1e3), 100, 0)
 
+
+start_time = time.time()
 for uav_state in UAV_task.nodes:
-    print("uav state {}".format(uav_state))
+    print("uav node {} and position {}".format(uav_state, UAV_task.nodes[uav_state]['pos']))
     for ugv_state in road_network.nodes:
         for battery in range(0, 101, battery_interval):
             # Todo: different node may represent the same node, this can cause some problem
@@ -78,7 +82,7 @@ for uav_state in UAV_task.nodes:
                 # power state
                 energy_state = battery/100*rendezvous.battery
                 #state_physical = uav_state + ugv_state + (energy_state, ) + (ugv_task_node, )
-                state = uav_state + ugv_state + (battery, ) + (ugv_task_node, )
+                state = (uav_state, ) + ugv_state + (battery, ) + (ugv_task_node, )
                 P_s_a[state] = {}
                  
                 if uav_state == UAV_goal:
@@ -113,7 +117,7 @@ for uav_state in UAV_task.nodes:
                             
                         for p_c in energy_states:
                             if p_c < 0:
-                                state_ = ('f', 'f', 'f', 'f', 'f', 'f')
+                                state_ = ('f',  'f', 'f', 'f', 'f')
                             else:
                                 soc = round(p_c/rendezvous.battery*100)
                                 temp = soc%battery_interval
@@ -123,7 +127,7 @@ for uav_state in UAV_task.nodes:
                                 else:
                                     soc = soc - temp
                                     assert soc%battery_interval == 0
-                                state_ = UAV_state_next + UGV_state_next + (soc, )+(UGV_task_node_next,)
+                                state_ = (UAV_state_next, ) + UGV_state_next + (soc, )+(UGV_task_node_next,)
                             if state_ not in P_s_a[state][action]:
                                 P_s_a[state][action][state_] = energy_distribution[p_c]
                             else:
@@ -139,7 +143,7 @@ for uav_state in UAV_task.nodes:
                         ugv_road_state = ugv_state + ugv_state
                         v1 = action[0:4]
                         v2 = 'v'+action[4:]
-                        rendezvous_state, t1, t2 = rendezvous.rendezvous_point(uav_state, UAV_state_next, ugv_state, 
+                        rendezvous_state, t1, t2 = rendezvous.rendezvous_point(UAV_task.nodes[uav_state]['pos'], UAV_task.nodes[UAV_state_next]['pos'], ugv_state, 
                                                                                ugv_road_state, ugv_task_node, 
                                                                                rendezvous.velocity_uav[v1], 
                                                                                rendezvous.velocity_uav[v2])
@@ -175,7 +179,7 @@ for uav_state in UAV_task.nodes:
                         energy_distribution2 = dict(zip(energy_states2, probs[v2]))
                         for p_c in energy_states2:
                             if p_c < 0:
-                                state_ = ('f', 'f', 'f', 'f', 'f', 'f')
+                                state_ = ('f',  'f', 'f', 'f', 'f')
                             else:
                                 soc = min(round(p_c/rendezvous.battery*100), 100)
                                 temp = soc%battery_interval
@@ -188,7 +192,7 @@ for uav_state in UAV_task.nodes:
                                     assert soc%battery_interval == 0
                                     assert soc >= 0
                                     
-                                state_ = UAV_state_next + UGV_state_next + (soc, )+(UGV_task_node_next,)
+                                state_ = (UAV_state_next, ) + UGV_state_next + (soc, )+(UGV_task_node_next,)
                             if state_ not in P_s_a[state][action]:
                                 P_s_a[state][action][state_] = energy_distribution2[p_c]*(1-failure_prob)
                             else:
@@ -204,6 +208,7 @@ P_s_a[state_l] = {}
 P_s_a[state_l][action] = {}
 P_s_a[state_l][action][state_l] = 1
 
+print("--- %s seconds ---" % (time.time() - start_time))
 
 
 
@@ -222,9 +227,10 @@ if randomcase:
     with open('P_s_a_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(P_s_a, f)
 else:    
-    with open('P_s_a.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('P_s_a'+str(threshold)+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(P_s_a, f)   
-      
+
+start_time = time.time()        
 # construct a transition graph
 G = nx.DiGraph()
 for state in P_s_a:
@@ -234,13 +240,15 @@ for state in P_s_a:
         for next_state in P_s_a[state][action]:
             assert next_state in P_s_a
             G.add_edge(state+(action,), next_state, action=action, prob=P_s_a[state][action][next_state])
+print("--- %s seconds ---" % (time.time() - start_time))
+
 
 # Saving the state-transition graph:
 if randomcase:
     with open('state_transition_graph_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(G, f)
 else:        
-    with open('state_transition_graph.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('state_transition_graph'+str(threshold)+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(G, f)
 
 # for node in G:
@@ -253,14 +261,14 @@ else:
 #     print([state, neighbor])
 #     print(G.edges[state, neighbor])
 
-i = 0.1        
+i = 0        
 for state in P_s_a:
     for action in P_s_a[state]:
         for next_state in P_s_a[state][action]:
             if next_state == state_f:
                 print("state: {} action:{} prob: {}".format(state, action, P_s_a[state][action][next_state]))
                 i += 1
-                if i>100:
+                if i>20:
                     break
 # Saving the objects:
 # with open('P_s_a.obj', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -274,17 +282,17 @@ if randomcase:
     with open('state_transition_graph_random.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
 else:
-    with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('P_s_a'+str(threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         P_s_a = pickle.load(f)
 
-    with open('state_transition_graph.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('state_transition_graph'+str(threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
                        
 # create transition function 
 def transition_prob(s_a_s):
-    state = tuple(list(s_a_s)[0:6])
-    action = s_a_s[6]
-    next_state = tuple(list(s_a_s)[7:])
+    state = tuple(list(s_a_s)[0:5])
+    action = s_a_s[5]
+    next_state = tuple(list(s_a_s)[6:])
     
     # unreachable state
     if (action not in P_s_a[state]) or (next_state not in P_s_a[state][action]):
@@ -292,12 +300,14 @@ def transition_prob(s_a_s):
         return 0
     
     # failure state
-    if state == state_f:     
+    if state == state_f:
+        #print('transit to failure state')
         assert action == 'l' and (next_state == state_l)
         return 1
 
     # goal
-    if (state[0], state[1]) == UAV_goal:
+    if state[0] == UAV_goal:
+        print("reach the goal and transition is {}".format(s_a_s))
         assert action == 'l' and (next_state == state_l)
         return 1
     
@@ -310,8 +320,8 @@ def transition_prob(s_a_s):
 
 
 def reward(s_a):
-    state = tuple(list(s_a)[0:6])
-    action = s_a[6]
+    state = tuple(list(s_a)[0:5])
+    action = s_a[5]
     
     if state == state_f:
         assert action == 'l', "should transit to loop state"
@@ -321,26 +331,28 @@ def reward(s_a):
         assert action == 'l', "should transit to loop state"
         return 0
     
-    if (state[0], state[1]) == UAV_goal:
+    if state[0] == UAV_goal:
         assert action == 'l', "should transit to loop state"
         return 0
     
     if action in ['v_be', 'v_br']:
-        uav_state = state[0:2]
+        uav_state = state[0]
         uav_state_next = list(UAV_task.neighbors(uav_state))[0]
         duration = UAV_task.edges[uav_state, uav_state_next]['dis'] / rendezvous.velocity_uav[action]
         return -duration
     
     if action in ['v_be_be', 'v_br_br']:
-        uav_state = state[0:2]
+        uav_state = state[0]
         uav_state_next = list(UAV_task.neighbors(uav_state))[0]
-        ugv_state = state[2:4]
+        ugv_state = state[1:3]
         ugv_road_state = ugv_state + ugv_state
         ugv_task_node = state[-1]
         v1 = action[0:4]
         v2 = 'v'+action[4:]
         uav_state_next = list(UAV_task.neighbors(uav_state))[0]
-        rendezvous_state, t1, t2 = rendezvous.rendezvous_point(uav_state, uav_state_next, ugv_state, 
+        rendezvous_state, t1, t2 = rendezvous.rendezvous_point(UAV_task.nodes[uav_state]['pos'], 
+                                                               UAV_task.nodes[uav_state_next]['pos'], 
+                                                               ugv_state, 
                                                                ugv_road_state, ugv_task_node, 
                                                                rendezvous.velocity_uav[v1], 
                                                                                rendezvous.velocity_uav[v2])
@@ -349,8 +361,8 @@ def reward(s_a):
 
 
 def cost(s_a):
-    state = tuple(list(s_a)[0:6])
-    action = s_a[6]
+    state = tuple(list(s_a)[0:5])
+    action = s_a[5]
     
     if state == state_f:
         assert action == 'l', "should transit to loop state"
@@ -360,7 +372,7 @@ def cost(s_a):
         assert action == 'l', "should transit to loop state"
         return 0
     
-    if (state[0], state[1]) == UAV_goal:
+    if state[0] == UAV_goal:
         assert action == 'l', "should transit to loop state"
         return 0
     
@@ -375,21 +387,23 @@ def cost(s_a):
     return C
 
 
-threshold = 0.5
+
 model = gp.Model('LP_CMDP')
 
 #indics for variables
 indices = []
 
+start_time = time.time()
 for state in P_s_a:
     # if state == state_l:
     #     continue
     for action in P_s_a[state]:
         indices.append(state + (action,))
 
+
 # add Non-negative continuous variables that lies between 0 and 1        
 rho = model.addVars(indices, lb=0,  vtype=GRB.CONTINUOUS,  name='rho')
-model.addConstrs((rho[s_a] >=0 for s_a in indices), name='non-negative-ctrs')
+model.addConstrs((rho[s_a] >= 0.0 for s_a in indices), name='non-negative-ctrs')
 
 # add constraints 
 # cost constraints
@@ -416,7 +430,7 @@ for state in P_s_a:
 
     #s_a_nodes = []
     for s_a in G.predecessors(state):
-        assert len(s_a) == 7
+        assert len(s_a) == 6
         #if s_a not in s_a_nodes:
         #s_a_nodes.append(s_a)
         s_a_s = s_a + state
@@ -440,12 +454,13 @@ for s_a in indices:
     
 model.setObjective(obj, GRB.MAXIMIZE)
 model.Params.FeasibilityTol = 1e-9    
+print("--- %s seconds ---" % (time.time() - start_time))
 
 model.optimize()
 
 policy = {}
 for s_a in indices:
-    state = tuple(list(s_a)[0:6])
+    state = tuple(list(s_a)[0:5])
     actions = list(P_s_a[state].keys())
     # numerical issue, gurobi will sometimes return a very small negative number for zero
     if rho[s_a].x < 0:
@@ -480,7 +495,7 @@ if randomcase:
     with open('policy_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(policy, f)  
 else:        
-    with open('policy.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('policy'+str(threshold)+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(policy, f)        
     
     
