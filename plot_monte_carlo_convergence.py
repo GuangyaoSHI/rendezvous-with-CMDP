@@ -193,14 +193,14 @@ if __name__ == "__main__":
     PF_threshold = 0.1
     
     # Getting back the objects:
-    with open('P_s_a_random.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         P_s_a = pickle.load(f)
         
     # Getting back the objects:
     # with open('policy'+str(PF_threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     #     policy = pickle.load(f)
     
-    with open('policy'+'_random'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('policy'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         policy = pickle.load(f)
     
     # Getting back the objects:
@@ -351,9 +351,9 @@ if __name__ == "__main__":
     # plot task duration and conditional task duration
     fig, axs = plt.subplots()
     axs.plot(thresholds, durations_mean, '-', color='g', label='task duration')
-    axs.plot(thresholds, success_durations_mean, '-', color='r', label='task duration|success')
+    #axs.plot(thresholds, success_durations_mean, '-', color='r', label='task duration|success')
     axs.fill_between(thresholds, np.array(durations_mean)-0.5*np.array(durations_std), np.array(durations_mean)+0.5*np.array(durations_std), color='g', alpha=0.2)
-    axs.fill_between(thresholds, np.array(success_durations_mean)-0.5*np.array(success_durations_std), np.array(success_durations_mean)+0.5*np.array(success_durations_std), color='r', alpha=0.2)
+    #axs.fill_between(thresholds, np.array(success_durations_mean)-0.5*np.array(success_durations_std), np.array(success_durations_mean)+0.5*np.array(success_durations_std), color='r', alpha=0.2)
     axs.set_title("UAV flight duration")
     axs.legend()
     fig.savefig("task_duration.pdf", bbox_inches='tight')
