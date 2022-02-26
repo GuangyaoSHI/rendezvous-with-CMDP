@@ -12,7 +12,7 @@ import matplotlib
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
-experiment_name = 'rel_vel2'
+experiment_name = '0.1'+'velocity_3'
 # Getting back the objects:
 with open('P_s_a'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     P_s_a = pickle.load(f)
@@ -25,9 +25,9 @@ with open('policy'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'r
 with open('state_transition_graph'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     G = pickle.load(f)
     
-state_f = ('f', 'f', 'f', 'f', 'f', 'f')
-state_l = ('l', 'l', 'l', 'l', 'l', 'l')    
-state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
+state_f = ( 'f', 'f', 'f', 'f', 'f')
+state_l = ( 'l', 'l', 'l', 'l', 'l')    
+state_init = (0, int(6.8e3), int(19.1e3), 100, 0)
 
 # generate state transition function
 UAV_task = generate_UAV_task()
@@ -40,10 +40,10 @@ actions = ['v_be', 'v_br', 'v_be_be', 'v_br_br']
 rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
 
 state = state_init
-UAV_state = (state[0], state[1])
-UGV_state = (state[2], state[3])
-energy_state = state[4]/100*rendezvous.battery
-UGV_task_node = state[5]
+UAV_state = state[0]
+UGV_state = (state[1], state[2])
+energy_state = state[3]/100*rendezvous.battery
+UGV_task_node = state[4]
 state_traces = [state]
 action_traces = []
 duration_traces = []
@@ -52,8 +52,10 @@ UAV_traces = [UAV_state]
 
 
 i = 0
+
 fig, axs = plt.subplots()
 # plot roadnetwork
+'''
 add_label = True
 for edge in road_network.edges:
     x = [edge[0][0], edge[1][0]]
@@ -63,25 +65,27 @@ for edge in road_network.edges:
         add_label = False
     else:
         axs.plot(x, y, color='b', alpha=0.4)
+'''
 
 add_label = True
 # plot UAV task
 hw = 200
 w = 0.1
 for edge in UAV_task.edges:
-    x, y = edge[0][0], edge[0][1] 
-    u, v = edge[1][0]-edge[0][0], edge[1][1]-edge[0][1] 
+    x, y = UAV_task.nodes[edge[0]]['pos'][0], UAV_task.nodes[edge[0]]['pos'][1] 
+    u, v = UAV_task.nodes[edge[1]]['pos'][0]-UAV_task.nodes[edge[0]]['pos'][0], UAV_task.nodes[edge[1]]['pos'][1]-UAV_task.nodes[edge[0]]['pos'][1] 
     if add_label:
         #axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=0.3, label="UAV task")
-        axs.arrow(x, y, u, v, head_width = hw, width = w, alpha=0.3, color='m', label="UAV task", linestyle=(5, (3,6)), length_includes_head=True)
+        axs.arrow(x, y, u, v, head_width = hw, width = w, alpha=0.5, color='k', label="UAV task", linestyle=(5, (3,6)), length_includes_head=True)
         add_label = False
     else:
         #axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=0.3)
-        axs.arrow(x, y, u, v, head_width = hw, width = w, alpha=0.3, color='m', linestyle=(5, (3,6)), length_includes_head=True)
+        axs.arrow(x, y, u, v, head_width = hw, width = w, alpha=0.5, color='k', linestyle=(5, (3,6)), length_includes_head=True)
 
 j=0
 for node in UAV_task.nodes:
-    axs.text(node[0], node[1], str(j))
+    axs.text(UAV_task.nodes[node]['pos'][0], UAV_task.nodes[node]['pos'][1], UAV_task.nodes[node]['label'])
+    axs.plot(UAV_task.nodes[node]['pos'][0], UAV_task.nodes[node]['pos'][1], marker='.', color='k', markersize=2)
     j += 1
 
 axs.axis('equal')      
@@ -98,7 +102,14 @@ while (UAV_state != UAV_goal and state != state_f):
     print("step {}".format(i))
     print("state {} policy {}".format(state, dict(zip(actions, probs))))
     # sample 
-    action = np.random.choice(actions, 1, p=probs)[0]
+    if np.sum(np.array(probs))<1:
+        #print("sum of prob is less than 1 : {}".format(probs))
+        action = np.random.choice(actions, 1)[0]
+    #print("step {}".format(i))
+    #print("state {} policy {}".format(state, dict(zip(actions, probs))))
+    # sample
+    else:
+        action = np.random.choice(actions, 1, p=probs)[0]
     print("take action {}".format(action))
     action_traces.append(action)
     
@@ -110,7 +121,9 @@ while (UAV_state != UAV_goal and state != state_f):
         ugv_road_state = UGV_state + UGV_state
         v1 = action[0:4]
         v2 = 'v'+action[4:]
-        rendezvous_state, t1, t2 = rendezvous.rendezvous_point(UAV_state, UAV_state_next, UGV_state, 
+        rendezvous_state, t1, t2 = rendezvous.rendezvous_point(UAV_task.nodes[UAV_state]['pos'], 
+                                                               UAV_task.nodes[UAV_state_next]['pos'],  
+                                                               UGV_state, 
                                                                ugv_road_state, UGV_task_node, 
                                                                rendezvous.velocity_uav[v1], 
                                                                rendezvous.velocity_uav[v2])
@@ -124,7 +137,10 @@ while (UAV_state != UAV_goal and state != state_f):
     UAV_traces.append(UAV_state_next)
     # Todo: 
     next_states = list(P_s_a[state][action].keys())
-    next_state_index = np.random.choice([i for i in range(len(next_states))], 1, p=list(P_s_a[state][action].values()))[0]
+    if np.sum(np.array(list(P_s_a[state][action].values())))<1:
+        next_state_index = np.random.choice([i for i in range(len(next_states))], 1)[0]
+    else:
+        next_state_index = np.random.choice([i for i in range(len(next_states))], 1, p=list(P_s_a[state][action].values()))[0]
     next_state = next_states[next_state_index]
     print("transit to state {}".format(next_state))
     
@@ -184,33 +200,34 @@ while (UAV_state != UAV_goal and state != state_f):
     axs.set_xlabel("choose action "+str(action) + "       battery:"+str(state[4]))
     #axs.set_aspect('equal', 'box')
     '''
-    hw = 80
+    hw = 150
     w = 0.05
     if len(action)>4:
-        x, y = UAV_state[0], UAV_state[1]
-        u, v = rendezvous_state[0] - UAV_state[0], rendezvous_state[1] - UAV_state[1] 
+        x, y = UAV_task.nodes[UAV_state]['pos'][0], UAV_task.nodes[UAV_state]['pos'][1]
+        u, v = rendezvous_state[0] - UAV_task.nodes[UAV_state]['pos'][0], rendezvous_state[1] - UAV_task.nodes[UAV_state]['pos'][1] 
         #axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
         if rendezvous_label:
-            axs.arrow(x, y, u, v, head_width = hw, width = w,  color='r', length_includes_head=True, label='rendezvous detour')
-            axs.plot(rendezvous_state[0], rendezvous_state[1], marker='*', color='k', markersize=4, alpha=0.8, label='rendezvous point')
+            axs.arrow(x, y, u*0.9, v*0.9, head_width = hw, width = w,  color='r', length_includes_head=True, label='rendezvous detour')
+            axs.plot(rendezvous_state[0], rendezvous_state[1], marker='*', color='m', markersize=4, alpha=0.8, label='rendezvous point')
             rendezvous_label = False
         else:
-            axs.plot(rendezvous_state[0], rendezvous_state[1], marker='*', color='k', markersize=4, alpha=0.8)
-            axs.arrow(x, y, u, v, head_width = hw, width = w,  color='r', length_includes_head=True)
+            axs.plot(rendezvous_state[0], rendezvous_state[1], marker='*', color='m', markersize=4, alpha=0.8)
+            axs.arrow(x, y, u*0.9, v*0.9, head_width = hw, width = w,  color='r', length_includes_head=True)
 
         #axs.text(rendezvous_state[0], rendezvous_state[1], 'rendezvous here')
         
         x, y = rendezvous_state[0], rendezvous_state[1]
-        u, v = UAV_state_next[0]-rendezvous_state[0], UAV_state_next[1]-rendezvous_state[1]
+        u, v = UAV_task.nodes[UAV_state_next]['pos'][0]-rendezvous_state[0], UAV_task.nodes[UAV_state_next]['pos'][1]-rendezvous_state[1]
         #axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
         axs.arrow(x, y, u, v, head_width = hw, width = w,  color='r', length_includes_head=True)
     else:
         if next_state == state_f:
-            UAV_state_next = (0, 0)
+            print("UAV fails !!!!!!!!!!!!!!!!!!")
+            break
         else:
-            UAV_state_next = (next_state[0], next_state[1])
-        x, y = UAV_state[0], UAV_state[1]
-        u, v = UAV_state_next[0] - UAV_state[0], UAV_state_next[1] - UAV_state[1] 
+            UAV_state_next = next_state[0]
+        x, y = UAV_task.nodes[UAV_state]['pos'][0], UAV_task.nodes[UAV_state]['pos'][1]
+        u, v = UAV_task.nodes[UAV_state_next]['pos'][0] - UAV_task.nodes[UAV_state]['pos'][0], UAV_task.nodes[UAV_state_next]['pos'][1] - UAV_task.nodes[UAV_state]['pos'][1] 
         #axs.quiver(x, y, u, v, scale_units='xy', angles='xy', scale=1, alpha=1, color='r')
         #axs.arrow(x, y, u, v, head_width = hw, width = w)
     
@@ -218,12 +235,25 @@ while (UAV_state != UAV_goal and state != state_f):
     i += 1
     state_traces.append(next_state)
     state = next_state
-    UAV_state = (state[0], state[1])
-    UGV_state = (state[2], state[3])
-    UGV_task_node = state[5]
+    UAV_state = state[0]
+    UGV_state = (state[1], state[2])
+    UGV_task_node = state[4]
 
-X = [uav[0] for uav in UAV_traces]
-Y = [uav[1] for uav in UAV_traces]
+X = []
+for uav in UAV_traces:
+    if type(uav)== int:
+        X.append(UAV_task.nodes[uav]['pos'][0])
+    else:
+        X.append(uav[0])
+
+Y = []
+for uav in UAV_traces:
+    if type(uav)== int:
+        Y.append(UAV_task.nodes[uav]['pos'][1])
+    else:
+        Y.append(uav[1])
+
+
 #axs.plot(X, Y, color='r')
 axs.set_xlabel('x Position (m)')
 axs.set_ylabel('y Position (m)')
@@ -232,7 +262,7 @@ axs.legend()
 
 fig.savefig("trace"+experiment_name+".pdf", bbox_inches='tight')
 
-
+print("duration {}".format(np.sum(np.array(duration_traces))))
 
 UGV_traces = []
 battery_traces = []
@@ -243,8 +273,8 @@ for i in range(len(action_traces)):
     #UAV_traces.append(action_traces[i])
 
 #UAV_traces.append((state_traces[i+1][0], state_traces[i+1][1]))
-UGV_traces.append((state_traces[i+1][2], state_traces[i+1][3]))  
-battery_traces.append(state_traces[i+1][4])
+#UGV_traces.append((state_traces[i+1][2], state_traces[i+1][3]))  
+#battery_traces.append(state_traces[i+1][4])
 
 print("UAV traces: {}".format(UAV_traces))
 print("UGV traces: {}".format(UGV_traces))  

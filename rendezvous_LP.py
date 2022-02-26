@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__) # Set up logger
 # generate state transition function
 # UGV_task is a directed graph. Node name is an index
 randomcase = False
-threshold = 0.45
+threshold = 0.1
+experiment_name = 'velocity_3'
 if randomcase:
     road_network = generate_road_network_random()
     with open('road_network_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -37,6 +38,7 @@ UAV_goal = UAV_goal[0]
 
 actions = ['v_be', 'v_br','v_be_be', 'v_br_br']
 rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=240e3)
+rendezvous.velocity_uav = {'v_be' : 14, 'v_br' : 14}
 rendezvous.display = False
 
 # get power consumption distribution:
@@ -227,7 +229,7 @@ if randomcase:
     with open('P_s_a_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(P_s_a, f)
 else:    
-    with open('P_s_a'+str(threshold)+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('P_s_a'+str(threshold)+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(P_s_a, f)   
 
 start_time = time.time()        
@@ -248,7 +250,7 @@ if randomcase:
     with open('state_transition_graph_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(G, f)
 else:        
-    with open('state_transition_graph'+str(threshold)+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('state_transition_graph'+str(threshold)+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(G, f)
 
 # for node in G:
@@ -282,10 +284,10 @@ if randomcase:
     with open('state_transition_graph_random.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
 else:
-    with open('P_s_a'+str(threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('P_s_a'+str(threshold)+experiment_name +'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         P_s_a = pickle.load(f)
 
-    with open('state_transition_graph'+str(threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('state_transition_graph'+str(threshold)+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
                        
 # create transition function 
@@ -495,7 +497,7 @@ if randomcase:
     with open('policy_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(policy, f)  
 else:        
-    with open('policy'+str(threshold)+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('policy'+str(threshold)+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(policy, f)        
     
     
