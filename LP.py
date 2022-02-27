@@ -23,7 +23,7 @@ state_l = ('l', 'l', 'l', 'l', 'l')
 state_init = (0, int(6.8e3), int(19.1e3), 100, 0)
 randomcase = False
 
-threshold = 0.5
+threshold = 0.01
 # generate state transition function
 UAV_task = generate_UAV_task()
 UAV_goal = [x for x in UAV_task.nodes() if (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==1) or (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==0)]

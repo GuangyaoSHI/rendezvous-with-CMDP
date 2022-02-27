@@ -135,11 +135,27 @@ def simulate_rendezvous_baseline(P_s_a, policy, G, state_l, state_f, state_init,
             action = 'l'
             print("state is {}".format(state))
         else:
-            if state[4] < 50:
+            '''
+            if state[4] < 40:
+                #action = np.random.choice(['v_br_br', 'v_be_be'], 1)[0]
                 action = 'v_br_br'
             else:
                 action = 'v_br'
-            
+            '''
+            action = 'v_br'
+            for nstate in P_s_a[state][action]:
+                if (nstate==state_f) and (P_s_a[state][action][nstate] > 0.1):
+                    action = np.random.choice(['v_br_br'], 1)[0]
+                    break
+                if (nstate==state_l) and (P_s_a[state][action][nstate] > 0.5):
+                    break
+                #print(nstate[3])
+                #print(P_s_a[state][action][nstate])
+                if (nstate[3] < 60) and (P_s_a[state][action][nstate] > 0.5):
+                    if state_f in P_s_a[nstate]['v_br_br']:
+                        if P_s_a[nstate]['v_br_br'][state_f]>0.2:
+                            action = np.random.choice(['v_br_br'], 1)[0]
+                    break
         action_traces.append(action)
         
         # compute UAV position after rendezvous
@@ -147,7 +163,6 @@ def simulate_rendezvous_baseline(P_s_a, policy, G, state_l, state_f, state_init,
         assert len(descendants) == 1
         UAV_state_next = descendants[0]
         if len(action)>4:
-            
             ugv_road_state = UGV_state + UGV_state
             v1 = action[0:4]
             v2 = 'v'+action[4:]
@@ -255,7 +270,7 @@ if __name__ == "__main__":
     
     # increase this to a higher value for the final results 
     mc = 2000
-    thresholds = [i/100 for i in range(5, 50, 5)]
+    thresholds = [i/100 for i in range(5, 50, 5)] + [0.01]
     successes = dict(zip(thresholds, [0]*len(thresholds)))
     durations = dict(zip(thresholds, []*len(thresholds)))
     durations_success = dict(zip(thresholds, []*len(thresholds)))
@@ -292,6 +307,7 @@ if __name__ == "__main__":
         
         UAV_state = state_traces[-1][0]
         if UAV_state == UAV_goal and state_traces[-1] != state_f:
+            print("UAV reaches the goal using baseline policy")
             success_baseline += 1
             durations_success_baseline.append(np.sum(np.array(duration_traces)))
       

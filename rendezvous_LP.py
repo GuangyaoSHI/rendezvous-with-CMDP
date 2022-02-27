@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__) # Set up logger
 # UGV_task is a directed graph. Node name is an index
 randomcase = False
 threshold = 0.1
-experiment_name = 'velocity_3'
+experiment_name = ''
 if randomcase:
     road_network = generate_road_network_random()
     with open('road_network_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -65,8 +65,8 @@ battery_interval = 4
 #probs = [2.27e-2, 13.6e-2, 34.13e-2, 34.13e-2, 13.6e-2, 2.27e-2]
 #values = [-0.25, -0.15, -0.05, 0.05, 0.15, 0.25]
 
-state_f = ('f',  'f', 'f', 'f', 'f')
-state_l = ('l',  'l', 'l', 'l', 'l')
+state_f = ('f', 'f', 'f', 'f', 'f')
+state_l = ('l', 'l', 'l', 'l', 'l')
 
 if randomcase:
     state_init = (0, 0, 0, 0, 100, 0)
