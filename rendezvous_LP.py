@@ -229,7 +229,7 @@ if randomcase:
     with open('P_s_a_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(P_s_a, f)
 else:    
-    with open('P_s_a'+str(threshold)+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('P_s_a'+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(P_s_a, f)   
 
 start_time = time.time()        
@@ -250,7 +250,7 @@ if randomcase:
     with open('state_transition_graph_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(G, f)
 else:        
-    with open('state_transition_graph'+str(threshold)+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('state_transition_graph'+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(G, f)
 
 # for node in G:
@@ -284,10 +284,10 @@ if randomcase:
     with open('state_transition_graph_random.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
 else:
-    with open('P_s_a'+str(threshold)+experiment_name +'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('P_s_a'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         P_s_a = pickle.load(f)
 
-    with open('state_transition_graph'+str(threshold)+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('state_transition_graph'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
                        
 # create transition function 

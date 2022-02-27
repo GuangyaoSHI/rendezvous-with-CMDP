@@ -201,16 +201,11 @@ def simulate_rendezvous_baseline(P_s_a, policy, G, state_l, state_f, state_init,
 
 if __name__ == "__main__":
     
-    PF_threshold = 0.1
     
-    experiment_name = '0.1'
+    experiment_name = ''
     # Getting back the objects:
     with open('P_s_a'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         P_s_a = pickle.load(f)
-        
-    # Getting back the objects:
-    with open('policy'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
-        policy = pickle.load(f)
 
     # Getting back the objects:
     with open('state_transition_graph'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
@@ -266,7 +261,7 @@ if __name__ == "__main__":
     durations_success = dict(zip(thresholds, []*len(thresholds)))
     
     for threshold in thresholds:
-        with open('policy'+str(threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+        with open('policy'+str(threshold)+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
             policy = pickle.load(f)
             
             durations[threshold] = []
@@ -344,7 +339,7 @@ if __name__ == "__main__":
     axs.set_xticks(x, ['task duration', 'success \n task duration'])
    
     axs.set_ylabel('Flight duration')
-    axs.set_ylim(1500, 4000)
+    axs.set_ylim(3500, 8000)
     
     
     x=2
@@ -355,7 +350,7 @@ if __name__ == "__main__":
     axs1.set_ylim(0.4, 1)
     axs1.legend(["Greedy", "CMDP"])
     axs1.set_title("Results comparison for c=0.1")
-    fig.savefig("comparison"+experiment_name+".pdf", bbox_inches='tight')
+    fig.savefig("comparison"+str(threshold)+experiment_name+".pdf", bbox_inches='tight')
     
     
     # plot task duration and conditional task duration
@@ -366,7 +361,7 @@ if __name__ == "__main__":
     axs.fill_between(thresholds, np.array(success_durations_mean)-0.5*np.array(success_durations_std), np.array(success_durations_mean)+0.5*np.array(success_durations_std), color='r', alpha=0.2)
     axs.set_title("UAV flight duration")
     axs.legend()
-    fig.savefig("task_duration"+experiment_name+".pdf", bbox_inches='tight')
+    fig.savefig("task_duration"+str(threshold)+experiment_name+".pdf", bbox_inches='tight')
     
     
     fig, axs = plt.subplots()
@@ -375,7 +370,7 @@ if __name__ == "__main__":
     axs.set_title("UAV flight duration")
     axs.set_xlabel("cost threshold")
     axs.set_ylabel("flight duration in seconds")
-    fig.savefig("task_duration_unconditional"+experiment_name+".pdf", bbox_inches='tight')
+    fig.savefig("task_duration_unconditional"+str(threshold)+experiment_name+".pdf", bbox_inches='tight')
     
     
     
@@ -386,7 +381,7 @@ if __name__ == "__main__":
     axs.set_title("UAV flight duration gap")
     axs.set_xlabel("cost threshold")
     axs.set_ylabel("Percentage")
-    fig.savefig("flight_duration_gap"+experiment_name+".pdf", bbox_inches='tight')
+    fig.savefig("flight_duration_gap"+str(threshold)+experiment_name+".pdf", bbox_inches='tight')
     
     
     
