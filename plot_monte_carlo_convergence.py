@@ -39,6 +39,12 @@ def simulate_rendezvous(P_s_a, policy, G, state_l, state_f, state_init, UAV_task
         #print("step {}".format(i))
         #print("state {} policy {}".format(state, dict(zip(actions, probs))))
         # sample 
+        '''
+        if np.sum(np.array(probs))<1:
+            np.random.choice(actions, 1)[0]
+        else:
+            action = np.random.choice(actions, 1, p=probs)[0]
+        '''
         action = np.random.choice(actions, 1, p=probs)[0]
         #print("take action {}".format(action))
         action_traces.append(action)
@@ -126,7 +132,7 @@ def simulate_rendezvous_baseline(P_s_a, policy, G, state_l, state_f, state_init,
             action = 'l'
             print("state is {}".format(state))
         else:
-            if state[4] < 30:
+            if state[4] < 43:
                 action = 'v_br_br'
             else:
                 action = 'v_br'
@@ -190,27 +196,20 @@ def simulate_rendezvous_baseline(P_s_a, policy, G, state_l, state_f, state_init,
 
 if __name__ == "__main__":
     
-    PF_threshold = 0.1
+    experiment_name = 'long'
     
     # Getting back the objects:
-    with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('P_s_a'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         P_s_a = pickle.load(f)
         
     # Getting back the objects:
-    # with open('policy'+str(PF_threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
-    #     policy = pickle.load(f)
-    
-    with open('policy'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
-        policy = pickle.load(f)
-    
-    # Getting back the objects:
-    with open('state_transition_graph.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('state_transition_graph'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
         
     state_f = ('f', 'f', 'f', 'f', 'f', 'f')
     state_l = ('l', 'l', 'l', 'l', 'l', 'l')    
-    #state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
-    state_init = (0, 0, 0, 0, 100, 0)
+    state_init = (int(6.8e3), int(19.1e3), int(6.8e3), int(19.1e3), 100, 0)
+    #state_init = (0, 0, 0, 0, 100, 0)
     
     # generate state transition function
     UAV_task = generate_UAV_task()
@@ -228,7 +227,7 @@ if __name__ == "__main__":
     
     # number of Monte Carlo 
     #MC = [100, 500, 1000, 5000]
-    
+    '''
     MC = [500, 1000, 3000, 5000, 8000, 10000]
     successes = dict(zip(MC, [0]*len(MC)))
     for mc in MC:
@@ -246,7 +245,7 @@ if __name__ == "__main__":
     KL = [np.log(pf/PF_threshold)*pf + np.log((1-pf)/(1-PF_threshold))*(1-pf) for pf in PF]
     Prob_success = [successes[mc]/mc for mc in successes]
     print(Prob_success)
-    
+    '''
     
     # increase this to a higher value for the final results 
     mc = 2000
@@ -256,12 +255,12 @@ if __name__ == "__main__":
     durations_success = dict(zip(thresholds, []*len(thresholds)))
     
     for threshold in thresholds:
-        with open('policy'+str(threshold)+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+        with open('policy'+str(threshold)+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
             policy = pickle.load(f)
             
             durations[threshold] = []
             durations_success[threshold] = []
-            
+            successes[threshold] = 0
             for i in range(mc):
                 state_traces, action_traces, duration_traces = simulate_rendezvous(P_s_a, policy, G, state_l, state_f, state_init, UAV_task, UAV_goal, UGV_task, road_network, actions, rendezvous)
                 durations[threshold].append(np.sum(np.array(duration_traces)))
@@ -332,9 +331,9 @@ if __name__ == "__main__":
     axs.bar(x-width/2, y_baseline, width, color='orange')
     axs.bar(x+width/2, y_CMDP, width, color='green')
     axs.set_xticks(x, ['task duration', 'success \n task duration'])
-   
+    
     axs.set_ylabel('Flight duration')
-    axs.set_ylim(1500, 4000)
+    axs.set_ylim(3000, 6000)
     
     
     x=2
@@ -344,8 +343,8 @@ if __name__ == "__main__":
     axs1.set_ylabel("Prob of reaching the goal")
     axs1.set_ylim(0.4, 1)
     axs1.legend(["Greedy", "CMDP"])
-    axs1.set_title("Results comparison for c=0.1")
-    fig.savefig("comparison.pdf", bbox_inches='tight')
+    axs1.set_title("Results comparison for c="+str(threshold))
+    fig.savefig("comparison"+str(threshold)+".pdf", bbox_inches='tight')
     
     
     # plot task duration and conditional task duration
@@ -356,6 +355,8 @@ if __name__ == "__main__":
     #axs.fill_between(thresholds, np.array(success_durations_mean)-0.5*np.array(success_durations_std), np.array(success_durations_mean)+0.5*np.array(success_durations_std), color='r', alpha=0.2)
     axs.set_title("UAV flight duration")
     axs.legend()
+    axs.set_xlabel("risk level")
+    axs.set_ylabel("task duration (second)")
     fig.savefig("task_duration.pdf", bbox_inches='tight')
     
     
@@ -372,7 +373,7 @@ if __name__ == "__main__":
     fig, axs = plt.subplots()
     gap = [abs(success_durations_mean[i]-durations_mean[i])/success_durations_mean[i] for i in range(len(success_durations_mean))]
     gap = [round(g*100) for g in gap]
-    axs.plot(thresholds, gap, '-', color='g', label='task duration')
+    axs.plot(thresholds[0:6], gap[0:6], '-', color='g', label='task duration')
     axs.set_title("UAV flight duration gap")
     axs.set_xlabel("cost threshold")
     axs.set_ylabel("Percentage")

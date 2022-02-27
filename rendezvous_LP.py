@@ -9,11 +9,13 @@ from utils import *
 import pickle
 import logging
 
-logger = logging.getLogger(__name__) # Set up logger
 
 # generate state transition function
 # UGV_task is a directed graph. Node name is an index
-randomcase = True
+threshold = 0.05
+experiment_name = ''
+
+randomcase = False
 if randomcase:
     road_network = generate_road_network_random()
     with open('road_network_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -34,14 +36,20 @@ UAV_goal = UAV_goal[0]
 
 
 actions = ['v_be', 'v_br','v_be_be', 'v_br_br']
-rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=240e3)
+rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
 rendezvous.display = False
 
 # get power consumption distribution:
 # best endurance velocity
+'''
 stats = {}
 for action in ['v_be', 'v_br']:
     stats[action] = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav[action])
+with open('power_stats.obj', 'wb') as f:  # Python 3: open(..., 'rb')
+    pickle.dump(stats, f)
+'''
+with open('power_stats.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    stats = pickle.load(f)
 
 powers = {'v_be':[], 'v_br':[]}
 probs = {'v_be':[], 'v_br':[]}
@@ -222,9 +230,11 @@ if randomcase:
     with open('P_s_a_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(P_s_a, f)
 else:    
-    with open('P_s_a.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('P_s_a'+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(P_s_a, f)   
-      
+
+        
+
 # construct a transition graph
 G = nx.DiGraph()
 for state in P_s_a:
@@ -240,7 +250,7 @@ if randomcase:
     with open('state_transition_graph_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(G, f)
 else:        
-    with open('state_transition_graph.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('state_transition_graph'+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(G, f)
 
 # for node in G:
@@ -252,7 +262,7 @@ else:
 # for neighbor in neighbors:
 #     print([state, neighbor])
 #     print(G.edges[state, neighbor])
-
+'''
 i = 0.1        
 for state in P_s_a:
     for action in P_s_a[state]:
@@ -262,6 +272,7 @@ for state in P_s_a:
                 i += 1
                 if i>100:
                     break
+'''
 # Saving the objects:
 # with open('P_s_a.obj', 'wb') as f:  # Python 3: open(..., 'wb')
 #     pickle.dump(P_s_a, f)
@@ -274,10 +285,10 @@ if randomcase:
     with open('state_transition_graph_random.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
 else:
-    with open('P_s_a.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('P_s_a'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         P_s_a = pickle.load(f)
 
-    with open('state_transition_graph.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('state_transition_graph'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
                        
 # create transition function 
@@ -375,7 +386,7 @@ def cost(s_a):
     return C
 
 
-threshold = 0.5
+
 model = gp.Model('LP_CMDP')
 
 #indics for variables
@@ -430,7 +441,6 @@ for state in P_s_a:
     model.addConstr(lhs == rhs, name = str(state))
     model.update()
     #print("equality constraint for state {}".format(state))
-    logger.info("just added constraint %s" % (lhs == rhs))
 
 
     
@@ -480,7 +490,7 @@ if randomcase:
     with open('policy_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(policy, f)  
 else:        
-    with open('policy.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('policy'+str(threshold)+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(policy, f)        
     
     

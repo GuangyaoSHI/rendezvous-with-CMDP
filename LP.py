@@ -16,7 +16,11 @@ import pickle
 import logging
 import copy
 
-logger = logging.getLogger(__name__) # Set up logger
+# generate state transition function
+# UGV_task is a directed graph. Node name is an index
+threshold = 0.5
+print("threshold is {}".format(threshold))
+experiment_name = 'long'
 
 state_f = ('f', 'f', 'f', 'f', 'f', 'f')
 state_l = ('l', 'l', 'l', 'l', 'l', 'l')
@@ -33,12 +37,11 @@ road_network = generate_road_network()
 actions = ['v_be', 'v_br', 'v_be_be', 'v_br_br']
 rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
 
-experiment_name = 'rel_vel2'
 # Getting back the objects:
-with open('P_s_a'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+with open('P_s_a'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     P_s_a = pickle.load(f)
 
-with open('state_transition_graph'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+with open('state_transition_graph'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     G = pickle.load(f)
 
 #reduce the size of G
@@ -142,7 +145,7 @@ def cost(s_a):
     return C
 
 
-threshold = 0.1
+
 model = gp.Model('LP_CMDP')
 
 #indics for variables
@@ -197,7 +200,6 @@ for state in P_s_a:
     model.addConstr(lhs == rhs, name = str(state))
     model.update()
     #print("equality constraint for state {}".format(state))
-    logger.info("just added constraint %s" % (lhs == rhs))
 
 
     
@@ -245,7 +247,7 @@ for s_a in indices:
 
 print("objective value is {}".format(obj.getValue()))        
 # Saving the objects:
-with open('policy'+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+with open('policy'+str(threshold)+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
     pickle.dump(policy, f)        
     
     
@@ -261,7 +263,8 @@ with open('policy'+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'w
 #         if abs(rho[state+(action, )].x) >0:
 #             print("state-action is {} rho is {}".format(state+(action, ), rho[state+(action, )].x))
 
-            
+'''           
 for s_a in indices:
     if rho[s_a].x >0:
         print("state-action is {} rho is {}".format(s_a, rho[s_a].x))
+'''
