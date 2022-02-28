@@ -41,13 +41,13 @@ rendezvous.display = False
 
 # get power consumption distribution:
 # best endurance velocity
-'''
+
 stats = {}
 for action in ['v_be', 'v_br']:
     stats[action] = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav[action])
 with open('power_stats.obj', 'wb') as f:  # Python 3: open(..., 'rb')
     pickle.dump(stats, f)
-'''
+
 with open('power_stats.obj', 'rb') as f:  # Python 3: open(..., 'rb')
     stats = pickle.load(f)
 
