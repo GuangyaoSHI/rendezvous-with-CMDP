@@ -293,6 +293,36 @@ class Rendezvous():
         
         for interval in stats:
             stats[interval] = stats[interval] / num_of_samples
+            if stats[interval] < 1e-13:
+                stats[interval] = 0
+            assert stats[interval] >=0, "statistics should be non-negative"
+        
+        # normalize probability
+        sum_prob = 0
+        for interval in stats:
+            sum_prob += stats[interval]
+        assert abs(sum_prob-1)<0.001, "should be close to 1"
+        for interval in stats:
+            stats[interval] = stats[interval] / sum_prob
+        
+        '''
+        all_intervals = list(stats.keys())
+        sum_prob = 0
+        for interval in all_intervals[1:]:
+            sum_prob += stats[interval]
+        stats[all_intervals[0]] = 1 - sum_prob
+        '''
+        temp = list(stats.keys())    
+        test_select = np.random.choice([(i[0]+i[1])/2 for i in temp], 1, p=list(stats.values()))
+        print("\n------------np random choice works fine with discretized power distribution------\n")
+        # after normalization, sum of prob should be 1
+        sum_prob = 0
+        for interval in stats:
+            sum_prob += stats[interval]
+        print("after normalization, prob of power is {} and sum of prob is {}".format(stats, sum_prob))
+        assert abs(sum_prob-1)<0.000001, "should be 1"
+        
+        
         # https://www.tutorialspoint.com/matplotlib/matplotlib_bar_plot.htm
         fig = plt.figure()
         ax = fig.add_axes([0, 0, 1, 1])
@@ -301,7 +331,7 @@ class Rendezvous():
         ax.barh(keys, list(stats.values()))
         #plt.xticks(rotation='vertical')
         ax.set_title("power consumption distribution for velocity "+str(tgtV))
-        
+        #print(stats)
         # Saving the state-transition graph:
         with open('P_'+str(tgtV)+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
             pickle.dump(stats, f)
@@ -403,6 +433,7 @@ class Rendezvous():
                 + ' to '+ str((int(UGV_state_next[0]), int(UGV_state_next[1]))))
         ax.legend()
         #fig.savefig("task_transition.pdf")
+    
         
     def display_rendezvous(self, rendezvous_node, UAV_state_last, UAV_state_next, 
                            UGV_state_last, UGV_state_next, battery_state_last, 
@@ -566,7 +597,7 @@ def generate_road_network_random():
     return road_network
 
 
-def generate_UAV_task():
+def generate_UAV_task(option='long'):
     # angle = 70 / 180 * np.pi
     # length = 13*60*20 / 2
     # height = 0.5*np.math.sin(angle)*(length)
@@ -608,8 +639,12 @@ def generate_UAV_task():
              (2.69*1e3, 10.62*1e3), (5.7*1e3, 11.45*1e3), (13*1e3, 12*1e3), (10.72*1e3, 10.2*1e3), (14.243*1e3, 8.518*1e3),
              (14.507*1e3, 6.27*1e3), (16.076*1e3, 5.845*1e3), (13.61*1e3, 1.23*1e3), (16.322*1e3, 3.549*1e3),
              (17.5*1e3, 1.5*1e3), (10e3, 17e3), (9.5e3, 15e3), (7e3, 8.9e3), (12e3, 4e3)]
+    if option == 'long':    
+        loop = [1,2,3,4,5,6,7,18,19,13,15,14,12,11,10,9,8,17,16,1]
     
-    loop = [1,2,3,4,5,6,7,18,19,13,15,14,12,11,10,9,8,17,16,1]
+    if option == 'short':
+        loop = [1,2,3,4,5,6,7,18,19,13,15,14]
+        
     loop = [i-1 for i in loop]
     for i in range(len(loop)-1):
         dis = np.linalg.norm(np.array(nodes[loop[i]])-np.array(nodes[loop[i+1]]))

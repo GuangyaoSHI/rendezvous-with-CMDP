@@ -10,13 +10,12 @@ import pickle
 import logging
 import time
 
-logger = logging.getLogger(__name__) # Set up logger
 
 # generate state transition function
 # UGV_task is a directed graph. Node name is an index
 randomcase = False
 threshold = 0.1
-experiment_name = ''
+experiment_name = 'short'
 if randomcase:
     road_network = generate_road_network_random()
     with open('road_network_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
@@ -30,7 +29,7 @@ if randomcase:
 else:
     UGV_task = generate_UGV_task()
     road_network = generate_road_network()
-    UAV_task = generate_UAV_task()
+    UAV_task = generate_UAV_task(option='short')
 
 UAV_goal = [x for x in UAV_task.nodes() if (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==1) or (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==0)]
 UAV_goal = UAV_goal[0]
@@ -38,14 +37,24 @@ UAV_goal = UAV_goal[0]
 
 actions = ['v_be', 'v_br','v_be_be', 'v_br_br']
 rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=240e3)
-rendezvous.velocity_uav = {'v_be' : 14, 'v_br' : 14}
+#rendezvous.velocity_ugv = 5
+#rendezvous.velocity_uav = {'v_be' : 14, 'v_br' : 14}
 rendezvous.display = False
 
 # get power consumption distribution:
 # best endurance velocity
+'''
 stats = {}
 for action in ['v_be', 'v_br']:
     stats[action] = rendezvous.get_power_consumption_distribution(rendezvous.velocity_uav[action])
+with open('power_stats.obj', 'wb') as f:  # Python 3: open(..., 'rb')
+    pickle.dump(stats, f)
+'''
+
+with open('power_stats.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    stats = pickle.load(f)
+    
+    
 
 powers = {'v_be':[], 'v_br':[]}
 probs = {'v_be':[], 'v_br':[]}
@@ -228,9 +237,12 @@ print("--- %s seconds ---" % (time.time() - start_time))
 if randomcase:
     with open('P_s_a_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(P_s_a, f)
+    
 else:    
-    with open('P_s_a'+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('P_s_a'+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(P_s_a, f)   
+    print("save as "+'P_s_a'+experiment_name+'.obj')
+
 
 start_time = time.time()        
 # construct a transition graph
@@ -250,8 +262,10 @@ if randomcase:
     with open('state_transition_graph_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(G, f)
 else:        
-    with open('state_transition_graph'+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
+    with open('state_transition_graph'+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
         pickle.dump(G, f)
+    print("save as "+'state_transition_graph'+experiment_name+'.obj')
+
 
 # for node in G:
 #     if node not in P_s_a.keys():
@@ -263,6 +277,7 @@ else:
 #     print([state, neighbor])
 #     print(G.edges[state, neighbor])
 
+'''
 i = 0        
 for state in P_s_a:
     for action in P_s_a[state]:
@@ -284,10 +299,10 @@ if randomcase:
     with open('state_transition_graph_random.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
 else:
-    with open('P_s_a'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('P_s_a'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         P_s_a = pickle.load(f)
 
-    with open('state_transition_graph'+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+    with open('state_transition_graph'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
         G = pickle.load(f)
                        
 # create transition function 
@@ -446,7 +461,6 @@ for state in P_s_a:
     model.addConstr(lhs == rhs, name = str(state))
     model.update()
     #print("equality constraint for state {}".format(state))
-    logger.info("just added constraint %s" % (lhs == rhs))
 
 
     
@@ -503,7 +517,7 @@ else:
     
 # simulate the whole process
     
-    
+'''    
 
                                 
 

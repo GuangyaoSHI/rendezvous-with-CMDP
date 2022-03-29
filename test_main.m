@@ -4,8 +4,8 @@ M = readmatrix(filename)
 M(8,:)
 X = M(8:end, 2);
 Y = M(8:end, 3);
-figure(1)
-plot(X, Y, '*-')
+figure(3)
+plot(X, Y, '*')
 axis equal
 
 paths = [6.8, 19.1;

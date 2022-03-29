@@ -16,38 +16,84 @@ import pickle
 import logging
 import copy
 import time
+import os
 
-
+#experiment_name = '_velocity3'   '_risk_tolerance' '_risk_level_example'
+# '_toy_example'
+experiment_name = '_toy_example'
+print("we are doing experiments: {}".format(experiment_name))
 state_f = ('f', 'f', 'f', 'f', 'f')
 state_l = ('l', 'l', 'l', 'l', 'l')
-state_init = (0, int(6.8e3), int(19.1e3), 100, 0)
-randomcase = False
+state_init = (0, 0, 1, 20, 0)
 
-threshold = 0.01
+threshold = 0.5
+print("threshold is {}".format(threshold))
 # generate state transition function
-UAV_task = generate_UAV_task()
+# actions
+actions = ['v_be',  'v_be_be']
+
+
+# generate UGV task
+G = nx.DiGraph()
+G.add_edge(0, 1)
+G.add_edge(1, 0)
+G.nodes[0]['pos'] = (0, 1)
+G.nodes[1]['pos'] = (15, 1)
+G.graph['UGV_goal'] = 1
+pos = nx.get_node_attributes(G,'pos')
+nx.draw(G, pos=pos,alpha=0.5, node_color='r', node_size=8)
+UGV_task = G
+print("UGV task is {}".format(UGV_task.nodes))
+
+# generate road network
+road_network = nx.Graph()
+for i in range(0, 15):
+    road_network.add_edge((i, 1), (i+1, 1), dis=1)
+pos = dict(zip(road_network.nodes, road_network.nodes))
+labels = dict(zip(road_network.nodes, np.arange(16)))
+nx.draw(road_network, pos=pos, labels=labels, alpha=1, node_color='r', node_size=2)    
+
+# generate UAV task
+UAV_task = nx.DiGraph()
+for i in range(0, 15):
+    UAV_task.add_edge(i, i+1, dis=1)
+    UAV_task.nodes[i]['pos'] = (i, 0)
+    UAV_task.nodes[i+1]['pos'] = (i+1, 0)
+pos = nx.get_node_attributes(UAV_task, 'pos')   
+labels = dict(zip(UAV_task.nodes, UAV_task.nodes))
+nx.draw(UAV_task, pos=pos, alpha=0.5, node_color='b', node_size=8, labels=labels)
 UAV_goal = [x for x in UAV_task.nodes() if (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==1) or (UAV_task.out_degree(x)==0 and UAV_task.in_degree(x)==0)]
 UAV_goal = UAV_goal[0]
-# UGV_task is a directed graph. Node name is an index
-UGV_task = generate_UGV_task()
-road_network = generate_road_network()
+print("UAV task is {} and goal is {}".format(UAV_task.nodes, UAV_goal))
 
-actions = ['v_be', 'v_br', 'v_be_be', 'v_br_br']
-rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=280e3)
 
-experiment_name = ''
+rendezvous = Rendezvous(UAV_task, UGV_task, road_network, battery=220e3)
+
+# when we test the influences of different speed, we need to change the parameters below
+rendezvous.velocity_ugv = 1
+rendezvous.velocity_uav = {'v_be' : 1, 'v_br' : 1}   
+rendezvous.display = False
+print("extract transition with UAV speed {} and UGV speed {}".format(rendezvous.velocity_uav, rendezvous.velocity_ugv))
+
+
+# file names to get transition information 
+current_directory = os.getcwd()
+target_directory = os.path.join(current_directory, r'transition_information')
+P_s_a_name = os.path.join(target_directory, 'P_s_a'+experiment_name+'.obj')
+transition_graph_name = os.path.join(target_directory, 'state_transition_graph'+experiment_name+'.obj')
+
 # Getting back the objects:
-with open('P_s_a'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+with open(P_s_a_name , 'rb') as f:  # Python 3: open(..., 'rb')
     P_s_a = pickle.load(f)
-
-with open('state_transition_graph'+experiment_name+'.obj', 'rb') as f:  # Python 3: open(..., 'rb')
+with open(transition_graph_name, 'rb') as f:  # Python 3: open(..., 'rb')
     G = pickle.load(f)
 
-#reduce the size of G
-# G = copy.deepcopy(GG)
-# for node in GG.nodes:
-#     if not nx.has_path(GG, source=state_init, target=node):
-#         G.remove_node(node)
+
+# set directory and file name to save the policy
+target_directory = os.path.join(current_directory, r'policy')
+if not os.path.exists(target_directory):
+   os.makedirs(target_directory)
+policy_name = os.path.join(target_directory, 'policy'+str(threshold)+experiment_name+'.obj')
                      
 # create transition function 
 def transition_prob(s_a_s):
@@ -251,27 +297,8 @@ for s_a in indices:
 
 print("objective value is {}".format(obj.getValue()))        
 # Saving the objects:
-if randomcase:
-    with open('policy_random.obj', 'wb') as f:  # Python 3: open(..., 'wb')
-        pickle.dump(policy, f)  
-else:        
-    with open('policy'+str(threshold)+experiment_name+'.obj', 'wb') as f:  # Python 3: open(..., 'wb')
-        pickle.dump(policy, f)        
+       
+with open(policy_name, 'wb') as f:  # Python 3: open(..., 'wb')
+    pickle.dump(policy, f)        
     
     
-# simulate the whole process
-    
-    
-
-                                
-
-
-
-                    
-
-                    
-            
-
-for s_a in indices:
-    if rho[s_a].x >0:
-        print("state-action is {} rho is {}".format(s_a, rho[s_a].x))
