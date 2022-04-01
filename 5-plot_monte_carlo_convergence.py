@@ -46,7 +46,9 @@ def simulate_rendezvous(P_s_a, policy, G, state_l, state_f, state_init, UAV_task
         #print("state {} policy {}".format(state, dict(zip(actions, probs))))
         # sample
         else:
-            action = np.random.choice(actions, 1, p=probs)[0]
+            index = probs.index(max(probs))
+            action = actions[index]
+            #action = np.random.choice(actions, 1, p=probs)[0]
         #print("take action {}".format(action))
         action_traces.append(action)
         
@@ -281,7 +283,8 @@ if __name__ == "__main__":
     
     # increase this to a higher value for the final results 
     mc = 2000
-    thresholds =  [0.01, 0.02, 0.03]+[i/100 for i in range(5, 50, 5)]
+    #thresholds =  [0.01, 0.02, 0.03]+[i/100 for i in range(5, 50, 5)]
+    thresholds = [i/100 for i in range(5, 30, 5)]
     successes = dict(zip(thresholds, [0]*len(thresholds)))
     durations = dict(zip(thresholds, []*len(thresholds)))
     durations_success = dict(zip(thresholds, []*len(thresholds)))

@@ -46,7 +46,9 @@ def simulate_rendezvous(P_s_a, policy, G, state_l, state_f, state_init, UAV_task
         #print("state {} policy {}".format(state, dict(zip(actions, probs))))
         # sample
         else:
-            action = np.random.choice(actions, 1, p=probs)[0]
+            index = probs.index(max(probs))
+            action = actions[index]
+            #action = np.random.choice(actions, 1, p=probs)[0]
         #print("take action {}".format(action))
         action_traces.append(action)
         

@@ -17,6 +17,7 @@ import logging
 import copy
 import time
 import os
+import sys
 
 #experiment_name = '_velocity3'   '_risk_tolerance' '_risk_level_example'
 # '_toy_example'
@@ -174,77 +175,196 @@ def cost(s_a):
     return C
 
 
-
-
-model = gp.Model('LP_CMDP')
-
-#indics for variables
-indices = []
-
-start_time = time.time()
+y = {}
+lambda_1 = 1
+lambda_sa = {}
+nu = {}
+C_sa_pri = {}
+C_sa_sec = {} 
+print("start to initialize")
 for state in P_s_a:
-    # if state == state_l:
-    #     continue
+    if state != state_l:
+        nu[state] = 1
     for action in P_s_a[state]:
-        indices.append(state + (action,))
+        y[state+(action,)] = 0.01
+        lambda_sa[state+(action,)]  = 500
+        C_sa_pri[state+(action,)] = reward(state+(action,))
+        C_sa_sec[state+(action,)] = cost(state+(action,))
 
 
-# add Non-negative continuous variables that lies between 0 and 1        
-rho = model.addVars(indices, lb=0,  vtype=GRB.CONTINUOUS,  name='rho')
-model.addConstrs((rho[s_a] >= 0.0 for s_a in indices), name='non-negative-ctrs')
-
-# add constraints 
-# cost constraints
-C = 0
-for s_a in indices:
-    # if cost(s_a)>0:
-    #     print("s_a {} cost is {}".format(s_a, cost(s_a)))
-    C += rho[s_a] * cost(s_a)
-cost_ctrs =  model.addConstr(C <= threshold, name='cost_ctrs')    
-
-print("start to add equality constraint")
-for state in P_s_a: 
-    if state == state_l:
-        continue
-    lhs = 0
-    rhs = 0
-    for action in P_s_a[state]:
-        #print(rho[state+(action,)].x)
-        lhs += rho[state+(action,)]
-        
-    # for s_a in indices:
-    #     s_a_s = s_a + state
-    #     rhs += rho[s_a] * transition_prob(s_a_s)
-
-    #s_a_nodes = []
-    for s_a in G.predecessors(state):
-        assert len(s_a) == 6
-        #if s_a not in s_a_nodes:
-        #s_a_nodes.append(s_a)
-        s_a_s = s_a + state
-        rhs += rho[s_a] * transition_prob(s_a_s)
-        
-    
-    if state == state_init:
-        print('initial state delta function')
-        rhs += 1
-    
-    model.addConstr(lhs == rhs, name = str(state))
-    model.update()
-    #print("equality constraint for state {}".format(state))
 
 
-    
-obj = 0
-for s_a in indices:
-    obj += rho[s_a] * reward(s_a)
-    
-model.setObjective(obj, GRB.MAXIMIZE)
-model.Params.FeasibilityTol = 1e-9    
+# update step size
+ay = 0.001
+a_lambda = 0.1
+a_nu = 0.1
+
+'''
+start_time = time.time()
+C_last_step = 0
+for s_a in y:
+    C_last_step += y[s_a]*C_sa_pri[s_a]
 print("--- %s seconds ---" % (time.time() - start_time))
 
-model.optimize()
+start_time = time.time()    
+np.dot(np.array(list(y.values())), np.array(list(C_sa_pri.values())))
+print("--- %s seconds ---" % (time.time() - start_time))
+'''
 
+C_last_step = -sys.maxsize
+y_last_step = copy.deepcopy(y)
+lambda_1_last_step = lambda_1
+lambda_sa_last_step = copy.deepcopy(lambda_sa)
+nu_last_step = copy.deepcopy(nu)
+
+y_current_step = copy.deepcopy(y)
+lambda_1_current_step = lambda_1
+lambda_sa_current_step = copy.deepcopy(lambda_sa)
+nu_current_step = copy.deepcopy(nu)
+C_current_step = np.dot(np.array(list(y_current_step.values())), np.array(list(C_sa_pri.values())))
+
+traces = [C_current_step]
+print("start to do iterations")
+while abs(C_current_step - C_last_step)>0.1:
+    C_last_step = C_current_step
+    for s_a in y:
+        # dy
+        state = s_a[0:5]
+        last_term_dy = 0
+        for state_next in P_s_a[state][s_a[-1]]:
+            if state_next != state_l:
+                s_a_s = s_a + state_next
+                last_term_dy += transition_prob(s_a_s)*nu_last_step[state_next]
+        
+        if state != state_l:
+            dy = C_sa_pri[s_a] + lambda_1_last_step*C_sa_sec[s_a] - \
+                lambda_sa_last_step[s_a] + nu_last_step[state] - last_term_dy
+        else:
+            dy = C_sa_pri[s_a] + lambda_1_last_step*C_sa_sec[s_a] - lambda_sa_last_step[s_a] - last_term_dy
+        # update y
+        y_current_step[s_a] = y_last_step[s_a] - ay*dy
+        if y_current_step[s_a]<0:
+            y_current_step[s_a] = 0
+        if y_current_step[s_a] > 1:
+            y_current_step[s_a] = 1
+        y_last_step[s_a] = y_current_step[s_a]
+       
+        # d lambda_sa
+        d_lambda_sa = -y_last_step[s_a]
+        # update lambda_sa
+        lambda_sa_current_step[s_a] = lambda_sa_last_step[s_a] + a_lambda*d_lambda_sa
+        if lambda_sa_current_step[s_a] < 0:
+            lambda_sa_current_step[s_a] = 0
+        lambda_sa_last_step[s_a] = lambda_sa_current_step[s_a]
+        
+    # d lambda1
+    d_lambda1 = np.dot(np.array(list(y_last_step.values())), np.array(list(C_sa_sec.values()))) - threshold
+    # update lambda1
+    lambda_1_current_step = lambda_1_last_step + a_lambda*d_lambda1
+    if lambda_1_current_step < 0:
+        lambda_1_current_step = 0
+    lambda_1_last_step = lambda_1_current_step
+        
+    for state in P_s_a:
+        # d nu
+        if state != state_l:
+            # first term
+            d_nu_first_term = 0
+            for action in P_s_a[state]:
+                d_nu_first_term += y_last_step[state+(action,)]
+            
+            # indicator
+            initial_state = 0
+            if state == state_init:
+                initial_state = 1
+            
+            # last term 
+            d_nu_last_term = 0
+            for s_a in G.predecessors(state):
+                assert len(s_a) == 6
+                #if s_a not in s_a_nodes:
+                #s_a_nodes.append(s_a)
+                s_a_s = s_a + state
+                d_nu_last_term += y_last_step[s_a] * transition_prob(s_a_s)
+                
+            d_nu = d_nu_first_term - initial_state - d_nu_last_term
+            
+            # update nu
+            nu_current_step[state] = nu_last_step[state] + a_nu*d_nu
+    C_current_step = np.dot(np.array(list(y_current_step.values())), np.array(list(C_sa_pri.values())))
+    traces.append(C_current_step)    
+
+print("optimal value is {}".format(C_current_step))            
+
+plt.plot(traces)
+
+
+
+
+
+        
+#indices for variables first define as list and then transform to numpy array
+'''
+y_sa = []
+lambda1 = 1
+lambda_sa = []
+nu_s = []
+
+# primary and secondary cost matrix
+C_sa_pri = []
+C_sa_sec = [] 
+P_sa_s_prime = []
+
+transition_vector = {}
+i=0
+for state in P_s_a:
+    # Todo: need to check whether the state_l is the last state
+    if state == state_l:
+        print("state_l index is {}".format(i))
+        print("number of states is {}".format(len(list(P_s_a.keys()))))
+    if state != state_l:
+        transition_vector[state] = 0 
+    i += 1
+    
+for state in P_s_a:
+    # Todo: need to check whether the state_l is the last state
+    if state != state_l:
+        nu_s.append(100) # initialize nu
+    
+    y = []
+    lamb = []
+    Cp = []
+    Cs = []
+    P = []
+    for action in P_s_a[state]:
+        # initialize y_sa labmda_sa 
+        y.append(0.5)
+        lamb.append(100)
+        Cp.append(reward(state+(action,)))
+        Cs.append(cost(state+(action,)))
+        
+        temp = copy.deepcopy(transition_vector)
+        assert state_l not in temp
+        for state_next in P_s_a[state][action]:
+            if state_next in temp:
+                assert state_next != state_l
+                temp[state_next] = P_s_a[state][action][state_next]
+        P.append(np.array(temp.values()))
+            
+    y_sa.append(np.array(y))
+    lambda_sa.append(np.array(lamb))
+    C_sa_pri.append(np.array(Cp))
+    C_sa_sec.append(np.array(Cs))
+    P_sa_s_prime.append(np.array(P))
+    
+y_sa = np.array(y_sa, dtype=object)
+lambda_sa = np.array(lambda_sa, dtype=object)
+P_sa_s_prime = np.array(P_sa_s_prime, dtype=object)
+'''  
+
+
+
+'''
 policy = {}
 for s_a in indices:
     state = tuple(list(s_a)[0:5])
@@ -264,7 +384,7 @@ for s_a in indices:
         else:
             num += rho[state+(action, )].x
         if rho[state+(action, )].x < 0:
-            print("------------- numerical issue -------------")
+            print("------------- numerical accuracy -------------")
             print(rho[state+(action, )].x)
     
     #assert num >= deno
@@ -281,5 +401,5 @@ print("objective value is {}".format(obj.getValue()))
        
 with open(policy_name, 'wb') as f:  # Python 3: open(..., 'wb')
     pickle.dump(policy, f)        
-    
+'''    
     
