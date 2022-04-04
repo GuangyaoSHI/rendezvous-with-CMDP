@@ -644,7 +644,9 @@ def generate_UAV_task(option='long'):
     
     if option == 'short':
         loop = [1,2,3,4,5,6,7,18,19,13,15,14]
-        
+    
+    if option == 'LP_test':
+        loop = [1,2,3,4]
     loop = [i-1 for i in loop]
     for i in range(len(loop)-1):
         dis = np.linalg.norm(np.array(nodes[loop[i]])-np.array(nodes[loop[i+1]]))
