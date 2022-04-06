@@ -135,7 +135,7 @@ def reward(s_a):
                                                                ugv_road_state, ugv_task_node, 
                                                                rendezvous.velocity_uav[v1], 
                                                                                rendezvous.velocity_uav[v2])
-        return -(t1+t2+rendezvous.charging_time)
+        return -(t1+t2+rendezvous.charging_time)/1000
     
 
 
@@ -167,7 +167,7 @@ def cost(s_a):
 
 
 y = {}
-lambda_1 = 0.1
+lambda_1 = 100
 lambda_sa = {}
 nu = {}
 C_sa_pri = {}
@@ -175,19 +175,19 @@ C_sa_sec = {}
 print("start to initialize")
 for state in P_s_a:
     if state != state_l:
-        nu[state] = 1
+        nu[state] = 10
     for action in P_s_a[state]:
-        y[state+(action,)] = 0.000000001
-        lambda_sa[state+(action,)]  = 0.1
+        y[state+(action,)] = 1
+        lambda_sa[state+(action,)]  = 1000
         C_sa_pri[state+(action,)] = -reward(state+(action,))
         assert C_sa_pri[state+(action,)] >= 0
         C_sa_sec[state+(action,)] = cost(state+(action,))
 
 
 # update step size
-ay = 0.00001
-a_lambda = 0.1
-a_nu = 0.1
+ay = 0.0001
+a_lambda = 0.0001
+a_nu = 0.0001
 
 
 
@@ -196,23 +196,6 @@ lambda_1_current_step = lambda_1
 lambda_sa_current_step = copy.deepcopy(lambda_sa)
 nu_current_step = copy.deepcopy(nu)
 C_current_step = np.dot(np.array(list(y_current_step.values())), np.array(list(C_sa_pri.values())))
-Lagrangian_current_step = C_current_step + lambda_1_current_step*(np.dot(np.array(list(y_current_step.values())), np.array(list(C_sa_sec.values())))-threshold)
-Lagrangian_current_step += -np.dot(np.array(list(y_current_step.values())), np.array(list(lambda_sa_current_step.values())))
-for state in nu_current_step:
-    assert state != state_l
-    temp = 0
-    for action in P_s_a[state]:
-        temp += y_current_step[state+(action,)]
-    if state == state_init:
-        temp -= 1
-    for s_a in G.predecessors(state):
-        assert len(s_a) == 6
-        #if s_a not in s_a_nodes:
-        #s_a_nodes.append(s_a)
-        s_a_s = s_a + state
-        temp -= y_current_step[s_a] * transition_prob(s_a_s)
-    Lagrangian_current_step += nu[state] * temp
-
 
 
 y_last_step = copy.deepcopy(y)
@@ -220,25 +203,28 @@ C_last_step = np.dot(np.array(list(y_last_step.values())), np.array(list(C_sa_pr
 lambda_1_last_step = lambda_1
 lambda_sa_last_step = copy.deepcopy(lambda_sa)
 nu_last_step = copy.deepcopy(nu)
-Lagrangian_last_step = Lagrangian_current_step - 0.01
+#Lagrangian_last_step = Lagrangian_current_step - 0.01
 
 
 
-traces = [C_current_step]
-Lagrangian_traces = [Lagrangian_current_step]
+obj_traces = [C_current_step]
+obj_mean = []
+y_traces = [y_current_step]
+y_mean = []
+#Lagrangian_traces = [Lagrangian_current_step]
 print("start to do iterations")
-step = 0
-while abs(Lagrangian_last_step - Lagrangian_current_step) > 1e-5:
-    print("iteration {}".format(step))
-    step += 1
-    Lagrangian_last_step = Lagrangian_current_step
+for j in range(1, 30000):
+    print("iteration {}".format(j))
+    ay = ay/1.0
+    a_lambda = ay
+    a_nu = ay
+    #Lagrangian_last_step = Lagrangian_current_step
     for s_a in y:
         # dy
         state = s_a[0:5]
         last_term_dy = 0
         for state_next in P_s_a[state][s_a[-1]]:
             if state_next != state_l:
-                s_a_s = s_a + state_next
                 last_term_dy += P_s_a[state][s_a[-1]][state_next]*nu_last_step[state_next]
         
         if state != state_l:
@@ -248,28 +234,21 @@ while abs(Lagrangian_last_step - Lagrangian_current_step) > 1e-5:
             dy = C_sa_pri[s_a] + lambda_1_last_step*C_sa_sec[s_a] - lambda_sa_last_step[s_a] - last_term_dy
         # update y
         y_current_step[s_a] = y_last_step[s_a] - ay*dy
-        if y_current_step[s_a]<0:
-            y_current_step[s_a] = 0
-        
-        #if y_current_step[s_a] > 1:
-        #    y_current_step[s_a] = 1
-        y_last_step[s_a] = y_current_step[s_a]
-       
+        #y_current_step[s_a] = max(y_current_step[s_a], 0)
         # d lambda_sa
         d_lambda_sa = -y_last_step[s_a]
         # update lambda_sa
         lambda_sa_current_step[s_a] = lambda_sa_last_step[s_a] + a_lambda*d_lambda_sa
         if lambda_sa_current_step[s_a] < 0:
             lambda_sa_current_step[s_a] = 0
-        lambda_sa_last_step[s_a] = lambda_sa_current_step[s_a]
         
+    y_traces.append(y_current_step)
     # d lambda1
     d_lambda1 = np.dot(np.array(list(y_last_step.values())), np.array(list(C_sa_sec.values()))) - threshold
     # update lambda1
     lambda_1_current_step = lambda_1_last_step + a_lambda*d_lambda1
     if lambda_1_current_step < 0:
         lambda_1_current_step = 0
-    lambda_1_last_step = lambda_1_current_step
         
     for state in P_s_a:
         # d nu
@@ -299,30 +278,33 @@ while abs(Lagrangian_last_step - Lagrangian_current_step) > 1e-5:
             nu_current_step[state] = nu_last_step[state] + a_nu*d_nu
     
     C_current_step = np.dot(np.array(list(y_current_step.values())), np.array(list(C_sa_pri.values())))
-    Lagrangian_current_step = C_current_step + lambda_1_current_step*(np.dot(np.array(list(y_current_step.values())), np.array(list(C_sa_sec.values())))-threshold)
-    Lagrangian_current_step -= np.dot(np.array(list(y_current_step.values())), np.array(list(lambda_sa_current_step.values())))
+    obj_traces.append(C_current_step)
     
-    for state in nu_current_step:
-        if state == state_l:
-            continue
-        
-        temp = 0
-        for action in P_s_a[state]:
-            temp += y_current_step[state+(action,)]
-        if state == state_init:
-            temp -= 1
-        for s_a in G.predecessors(state):
-            assert len(s_a) == 6
-            #if s_a not in s_a_nodes:
-            #s_a_nodes.append(s_a)
-            s_a_s = s_a + state
-            temp -= y_current_step[s_a] * transition_prob(s_a_s)
-        Lagrangian_current_step += nu[state] * temp
+    # update last step information
+    #y_last_step = copy.deepcopy(y_current_step)
+    y_last_step = dict(zip(y_last_step.keys(), y_current_step.values()))
+    #lambda_sa_last_step = copy.deepcopy(lambda_sa_current_step)
+    lambda_sa_last_step = dict(zip(lambda_sa_last_step.keys(), lambda_sa_current_step.values()))
+    
+    lambda_1_last_step = lambda_1_current_step
+    nu_last_step = dict(zip(nu_last_step.keys(), nu_current_step.values()))
+    #nu_last_step = copy.deepcopy(nu_current_step)
 
-    traces.append(C_current_step)    
-    Lagrangian_traces.append(Lagrangian_current_step)
-print("optimal value is {}".format(C_current_step))            
-constraints = np.dot(np.array(list(y_current_step.values())), np.array(list(C_sa_sec.values())))
+# post processing
+for i in range(len(obj_traces)):
+    obj_mean.append(np.mean(obj_traces[0:i+1]))
+    
+print("optimal value is {}".format(obj_mean[-1]*100))       
+plt.plot(obj_mean)
+
+
+temp = 0
+for i in range(len(y_traces)):
+    temp += np.array(list(y_traces.values()))
+    
+y_value = dict(zip(list(y.keys()), temp))
+ 
+constraints = np.dot(np.array(list(y_value.values())), np.array(list(C_sa_sec.values())))
 print("risk is {}".format(constraints))            
 
 print("check equality constraint")
@@ -343,11 +325,10 @@ for state in nu_current_step:
     if temp > 0.0000001:
         print("state {} equality constraint value is {}".format(state, temp))
 
-plt.plot(np.arange(0, len(traces)), traces)
-plt.plot(np.arange(0, len(Lagrangian_traces)), Lagrangian_traces)
 
 
 
+'''
 for s_a in C_sa_pri:
     assert C_sa_pri[s_a]>=0
 
@@ -359,7 +340,7 @@ for key in y_current_step:
         state = key[0:5]
         action = key[5]
         print("next state is {} by taking action {}".format(P_s_a[state][action], action))
-
+'''
 
 
         

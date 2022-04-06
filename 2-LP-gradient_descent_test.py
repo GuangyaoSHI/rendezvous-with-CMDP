@@ -36,25 +36,18 @@ x_currrent_step = 0
 y_currrent_step = 0
 u1_currrent_step, u2_currrent_step, u3_currrent_step, u4_currrent_step, u5_currrent_step = 0, 0, 0, 0, 0
 v1_currrent_step = 0
-#L_current_step = -(x_currrent_step + 2*y_currrent_step) + u1_currrent_step*(2*x_currrent_step+y_currrent_step-20)+\
-#    u2_currrent_step*(-4*x_currrent_step+5*y_currrent_step-10) +\
- #       u3_currrent_step*(x_currrent_step-2*y_currrent_step-2) + \
-#            u4_currrent_step*(-x_currrent_step) + \
-#                u5_currrent_step*(-y_currrent_step) + \
-#                  v1_currrent_step*(-x_currrent_step+5*y_currrent_step-15)
-L_current_step = -(x_currrent_step + 2*y_currrent_step) + u4_currrent_step*(x_currrent_step)+u5_currrent_step*(y_currrent_step)
+
 
 x_last_step = 2
 y_last_step = 2
 u1_last_step, u2_last_step, u3_last_step, u4_last_step, u5_last_step = 0, 0, 0, 0, 0
 v1_last_step = 0
-L_last_step = L_current_step - 0.1
 
-ax = 0.1
-L_traces = [L_current_step]
+ax = 0.0001
+
 traces = [x_currrent_step+2*y_currrent_step]
-while (abs(L_current_step - L_last_step) >0.001):
-    ax=ax/1.1
+for j in range(2000):
+    ax=ax/1.0
     ay = ax
     au = ax
     av = ax 
