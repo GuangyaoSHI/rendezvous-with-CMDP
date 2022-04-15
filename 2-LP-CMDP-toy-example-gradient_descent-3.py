@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Sun Feb  6 17:04:26 2022
 
@@ -19,23 +18,50 @@ import time
 import os
 
 
-state_f = ('sf')
+state_f = 'sf'
 goal = 'sg'
-state_l = ('sl')
-state_init = ('s0')
+state_l = 'sl'
+state_init = 's0'
 
-threshold = 0.3
+threshold = 0.5
 print("threshold is {}".format(threshold))
 # generate state transition function
 
+R_s_a = {} 
 P_s_a = {}
 P_s_a['s0'] = {}
 P_s_a['s0']['a1'] = {}
-P_s_a['s0']['a1']['sg'] = 0.8
+P_s_a['s0']['a1']['s1'] = 0.4
+P_s_a['s0']['a1']['s2'] = 0.4
 P_s_a['s0']['a1']['sf'] = 0.2
+R_s_a['s0'] = {}
+R_s_a['s0']['a1'] = 5
+
 P_s_a['s0']['a2'] = {}
 P_s_a['s0']['a2']['sg'] = 0.6
 P_s_a['s0']['a2']['sf'] = 0.4
+R_s_a['s0']['a2'] = 8
+
+P_s_a['s1'] = {}
+P_s_a['s1']['a1'] = {}
+P_s_a['s1']['a1']['s3'] = 0.7
+P_s_a['s1']['a1']['sg'] = 0.3
+R_s_a['s1'] = {}
+R_s_a['s1']['a1'] = 2
+
+P_s_a['s2'] = {}
+P_s_a['s2']['a1'] = {}
+P_s_a['s2']['a1']['sf'] = 0.1
+P_s_a['s2']['a1']['sg'] = 0.9
+R_s_a['s2'] = {}
+R_s_a['s2']['a1'] = 2
+
+P_s_a['s3'] = {}
+P_s_a['s3']['a1'] = {}
+P_s_a['s3']['a1']['sg'] = 0.2
+P_s_a['s3']['a1']['sf'] = 0.8
+R_s_a['s3'] = {}
+R_s_a['s3']['a1'] = 2
 
 P_s_a['sg'] = {}
 P_s_a['sg']['l'] = {}
@@ -57,7 +83,7 @@ for state in P_s_a:
             assert next_state in P_s_a
             G.add_edge((state,)+(action,), next_state, action=action, prob=P_s_a[state][action][next_state])
 
-nx.draw(G, with_labels=True)
+#nx.draw(G, with_labels=True)
 
                      
 # create transition function 
@@ -107,11 +133,10 @@ def reward(s_a):
         assert action == 'l', "should transit to loop state"
         return 0
     
-    if action == 'a1':
-        return 1
+    assert state in R_s_a
+    return R_s_a[state][action]
     
-    if action == 'a2':
-        return 5
+    
     
 
 def cost(s_a):
@@ -159,6 +184,7 @@ for state in P_s_a:
 # add Non-negative continuous variables that lies between 0 and 1        
 rho = model.addVars(indices, lb=0,  vtype=GRB.CONTINUOUS,  name='rho')
 model.addConstrs((rho[s_a] >= 0.0 for s_a in indices), name='non-negative-ctrs')
+model.update()
 
 # add constraints 
 # cost constraints
@@ -207,7 +233,7 @@ obj = 0
 for s_a in indices:
     obj += rho[s_a] * reward(s_a)
     
-model.setObjective(obj, GRB.MAXIMIZE)
+model.setObjective(obj, GRB.MINIMIZE)
 model.Params.FeasibilityTol = 1e-9    
 print("--- %s seconds ---" % (time.time() - start_time))
 
@@ -216,9 +242,6 @@ model.optimize()
 print("objective value is {}".format(obj.getValue()))        
 # Saving the objects:
        
-
-
-
 y = {}
 lambda_1 = 0
 lambda_sa = {}
@@ -238,7 +261,7 @@ for state in P_s_a:
 
 
 # update step size
-ay = 0.012
+ay = 0.048
 a_lambda = 0.001
 a_nu = 0.001
 
@@ -260,13 +283,12 @@ nu_last_step = copy.deepcopy(nu)
 
 
 obj_traces = [C_current_step]
-obj_mean = []
 y_traces = [y_current_step]
 y_mean = []
 #Lagrangian_traces = [Lagrangian_current_step]
 print("start to do iterations")
-for j in range(1, 8000):
-    print("iteration {}".format(j))
+for j in range(1, 35000):
+    #print("iteration {}".format(j))
     ay = ay/1.0
     a_lambda = ay
     a_nu = ay
@@ -281,18 +303,18 @@ for j in range(1, 8000):
         
         if state != state_l:
             dy = C_sa_pri[s_a] + lambda_1_last_step*C_sa_sec[s_a] - \
-                lambda_sa_last_step[s_a] + nu_last_step[state] - last_term_dy
+                0 + nu_last_step[state] - last_term_dy
         else:
-            dy = C_sa_pri[s_a] + lambda_1_last_step*C_sa_sec[s_a] - lambda_sa_last_step[s_a] - last_term_dy
+            dy = C_sa_pri[s_a] + lambda_1_last_step*C_sa_sec[s_a] - 0 - last_term_dy
         # update y
         y_current_step[s_a] = y_last_step[s_a] - ay*dy
-        #y_current_step[s_a] = max(y_current_step[s_a], 0)
+        y_current_step[s_a] = max(y_current_step[s_a], 0)
         # d lambda_sa
-        d_lambda_sa = -y_last_step[s_a]
+        #d_lambda_sa = -y_last_step[s_a]
         # update lambda_sa
-        lambda_sa_current_step[s_a] = lambda_sa_last_step[s_a] + a_lambda*d_lambda_sa
-        if lambda_sa_current_step[s_a] < 0:
-            lambda_sa_current_step[s_a] = 0
+        #lambda_sa_current_step[s_a] = 0 + a_lambda*d_lambda_sa
+        #if lambda_sa_current_step[s_a] < 0:
+        #    lambda_sa_current_step[s_a] = 0
         
     y_traces.append(y_current_step)
     # d lambda1
@@ -336,16 +358,20 @@ for j in range(1, 8000):
     #y_last_step = copy.deepcopy(y_current_step)
     y_last_step = dict(zip(y_last_step.keys(), y_current_step.values()))
     #lambda_sa_last_step = copy.deepcopy(lambda_sa_current_step)
-    lambda_sa_last_step = dict(zip(lambda_sa_last_step.keys(), lambda_sa_current_step.values()))
+    #lambda_sa_last_step = dict(zip(lambda_sa_last_step.keys(), lambda_sa_current_step.values()))
     
     lambda_1_last_step = lambda_1_current_step
     nu_last_step = dict(zip(nu_last_step.keys(), nu_current_step.values()))
     #nu_last_step = copy.deepcopy(nu_current_step)
 
+print("Iterations done!")
 # post processing
-for i in range(len(obj_traces)):
-    obj_mean.append(np.mean(obj_traces[0:i+1]))
+obj_mean = [obj_traces[0]]
+for i in range(1, len(obj_traces)):
+    obj_mean.append(i*obj_mean[i-1]/(i+1) + obj_traces[i]/(i+1))
     
-print("optimal value is {}".format(obj_mean[-1]))       
+print("converge value is {}".format(obj_mean[-1]))       
 plt.plot(obj_mean)
+print("objective value from Gurobi is {}".format(obj.getValue()))        
+
     

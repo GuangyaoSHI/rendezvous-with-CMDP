@@ -97,6 +97,7 @@ def transition_prob(s_a_s):
     
     return P_s_a[state][action][next_state] 
 
+scale = 10000
 
 def reward(s_a):
     state = tuple(list(s_a)[0:5])
@@ -118,7 +119,7 @@ def reward(s_a):
         uav_state = state[0]
         uav_state_next = list(UAV_task.neighbors(uav_state))[0]
         duration = UAV_task.edges[uav_state, uav_state_next]['dis'] / rendezvous.velocity_uav[action]
-        return -duration
+        return -duration/scale 
     
     if action in ['v_be_be', 'v_br_br']:
         uav_state = state[0]
@@ -135,7 +136,7 @@ def reward(s_a):
                                                                ugv_road_state, ugv_task_node, 
                                                                rendezvous.velocity_uav[v1], 
                                                                                rendezvous.velocity_uav[v2])
-        return -(t1+t2+rendezvous.charging_time)/1000
+        return (t1+t2+rendezvous.charging_time)/scale
     
 
 
@@ -179,7 +180,7 @@ for state in P_s_a:
     for action in P_s_a[state]:
         y[state+(action,)] = 1
         lambda_sa[state+(action,)]  = 1000
-        C_sa_pri[state+(action,)] = -reward(state+(action,))
+        C_sa_pri[state+(action,)] = reward(state+(action,))
         assert C_sa_pri[state+(action,)] >= 0
         C_sa_sec[state+(action,)] = cost(state+(action,))
 
@@ -291,10 +292,14 @@ for j in range(1, 30000):
     #nu_last_step = copy.deepcopy(nu_current_step)
 
 # post processing
-for i in range(len(obj_traces)):
-    obj_mean.append(np.mean(obj_traces[0:i+1]))
+print("Iterations done!")
+# post processing
+obj_mean = [obj_traces[0]]
+for i in range(1, len(obj_traces)):
+    obj_mean.append(i*obj_mean[i-1]/(i+1) + obj_traces[i]/(i+1))
     
-print("optimal value is {}".format(obj_mean[-1]*100))       
+print("converge value is {}".format(obj_mean[-1]*1000))       
+
 plt.plot(obj_mean)
 
 
@@ -326,21 +331,6 @@ for state in nu_current_step:
         print("state {} equality constraint value is {}".format(state, temp))
 
 
-
-
-'''
-for s_a in C_sa_pri:
-    assert C_sa_pri[s_a]>=0
-
-
-for key in y_current_step:
-    assert y_current_step[key] >= 0
-    if y_current_step[key] > 0:
-        print("s_a {} and y {}".format(key, y_current_step[key]))
-        state = key[0:5]
-        action = key[5]
-        print("next state is {} by taking action {}".format(P_s_a[state][action], action))
-'''
 
 
         

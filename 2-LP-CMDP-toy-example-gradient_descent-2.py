@@ -57,7 +57,7 @@ for state in P_s_a:
             assert next_state in P_s_a
             G.add_edge((state,)+(action,), next_state, action=action, prob=P_s_a[state][action][next_state])
 
-nx.draw(G, with_labels=True)
+#nx.draw(G, with_labels=True)
 
                      
 # create transition function 
@@ -159,6 +159,7 @@ for state in P_s_a:
 # add Non-negative continuous variables that lies between 0 and 1        
 rho = model.addVars(indices, lb=0,  vtype=GRB.CONTINUOUS,  name='rho')
 model.addConstrs((rho[s_a] >= 0.0 for s_a in indices), name='non-negative-ctrs')
+model.update()
 
 # add constraints 
 # cost constraints
@@ -207,7 +208,7 @@ obj = 0
 for s_a in indices:
     obj += rho[s_a] * reward(s_a)
     
-model.setObjective(obj, GRB.MAXIMIZE)
+model.setObjective(obj, GRB.MINIMIZE)
 model.Params.FeasibilityTol = 1e-9    
 print("--- %s seconds ---" % (time.time() - start_time))
 
@@ -216,6 +217,45 @@ model.optimize()
 print("objective value is {}".format(obj.getValue()))        
 # Saving the objects:
        
+
+
+
+# Create a new model
+m = gp.Model('toy_CMDP')
+
+# Create variables
+x1 = m.addVar(name="x1", lb=0)
+x2 = m.addVar(name="x2", lb=0)
+x3 = m.addVar(name="x3", lb=0)
+x4 = m.addVar(name="x4", lb=0)
+x5 = m.addVar(name="x5", lb=0)
+
+# Set objective function
+m.setObjective(x1+5*x2 , GRB.MINIMIZE)
+m.Params.FeasibilityTol = 1e-9    
+
+#Add constraints
+m.addConstr(0.2*x1 + 0.4*x2 <= 0.3, "c1")
+m.addConstr(x1 + x2 == 1, "c2")
+m.addConstr(x3 == 0.8*x1 + 0.6*x2, "c3")
+m.addConstr(x4 == 0.2*x1 + 0.4*x2, "c4")
+m.addConstr(x1 >= 0, "c5")
+m.addConstr(x2 >= 0, "c6")
+m.addConstr(x3 >= 0, "c7")
+m.addConstr(x4 >= 0, "c8")
+m.addConstr(x5 >= 0, "c9")
+
+
+# Optimize model
+m.optimize()
+
+#Print values for decision variables
+for v in m.getVars():
+    print(v.varName, v.x)
+
+#Print maximized profit value
+print('Maximized profit:',  m.objVal)
+
 
 
 
@@ -238,7 +278,7 @@ for state in P_s_a:
 
 
 # update step size
-ay = 0.012
+ay = 0.2
 a_lambda = 0.001
 a_nu = 0.001
 
@@ -260,13 +300,12 @@ nu_last_step = copy.deepcopy(nu)
 
 
 obj_traces = [C_current_step]
-obj_mean = []
 y_traces = [y_current_step]
 y_mean = []
 #Lagrangian_traces = [Lagrangian_current_step]
 print("start to do iterations")
 for j in range(1, 8000):
-    print("iteration {}".format(j))
+    #print("iteration {}".format(j))
     ay = ay/1.0
     a_lambda = ay
     a_nu = ay
@@ -281,18 +320,18 @@ for j in range(1, 8000):
         
         if state != state_l:
             dy = C_sa_pri[s_a] + lambda_1_last_step*C_sa_sec[s_a] - \
-                lambda_sa_last_step[s_a] + nu_last_step[state] - last_term_dy
+                0 + nu_last_step[state] - last_term_dy
         else:
-            dy = C_sa_pri[s_a] + lambda_1_last_step*C_sa_sec[s_a] - lambda_sa_last_step[s_a] - last_term_dy
+            dy = C_sa_pri[s_a] + lambda_1_last_step*C_sa_sec[s_a] - 0 - last_term_dy
         # update y
         y_current_step[s_a] = y_last_step[s_a] - ay*dy
-        #y_current_step[s_a] = max(y_current_step[s_a], 0)
+        y_current_step[s_a] = max(y_current_step[s_a], 0)
         # d lambda_sa
-        d_lambda_sa = -y_last_step[s_a]
+        #d_lambda_sa = -y_last_step[s_a]
         # update lambda_sa
-        lambda_sa_current_step[s_a] = lambda_sa_last_step[s_a] + a_lambda*d_lambda_sa
-        if lambda_sa_current_step[s_a] < 0:
-            lambda_sa_current_step[s_a] = 0
+        #lambda_sa_current_step[s_a] = 0 + a_lambda*d_lambda_sa
+        #if lambda_sa_current_step[s_a] < 0:
+        #    lambda_sa_current_step[s_a] = 0
         
     y_traces.append(y_current_step)
     # d lambda1
@@ -336,16 +375,20 @@ for j in range(1, 8000):
     #y_last_step = copy.deepcopy(y_current_step)
     y_last_step = dict(zip(y_last_step.keys(), y_current_step.values()))
     #lambda_sa_last_step = copy.deepcopy(lambda_sa_current_step)
-    lambda_sa_last_step = dict(zip(lambda_sa_last_step.keys(), lambda_sa_current_step.values()))
+    #lambda_sa_last_step = dict(zip(lambda_sa_last_step.keys(), lambda_sa_current_step.values()))
     
     lambda_1_last_step = lambda_1_current_step
     nu_last_step = dict(zip(nu_last_step.keys(), nu_current_step.values()))
     #nu_last_step = copy.deepcopy(nu_current_step)
 
+print("Iterations done!")
 # post processing
-for i in range(len(obj_traces)):
-    obj_mean.append(np.mean(obj_traces[0:i+1]))
+obj_mean = [obj_traces[0]]
+for i in range(1, len(obj_traces)):
+    obj_mean.append(i*obj_mean[i-1]/(i+1) + obj_traces[i]/(i+1))
     
 print("optimal value is {}".format(obj_mean[-1]))       
 plt.plot(obj_mean)
+print("objective value from Gurobi is {}".format(obj.getValue()))        
+
     
